@@ -3,12 +3,12 @@ import streamlit as st
 
 # Sayfa Yapılandırması
 st.set_page_config(
-    page_title="LingoBaby - Akıllı İngilizce Öğrenme Platformu",
+    page_title="LingoCat - MEB Maarif Model İngilizce Platformu",
     page_icon="🐱",
     layout="wide",
 )
 
-# Arayüz ve LED Efekt CSS Tasarımı
+# Gelişmiş CSS, LED Efektleri ve Google Ses Desteği
 st.markdown(
     """
     <style>
@@ -23,7 +23,7 @@ st.markdown(
         margin-bottom: 20px;
     }
     
-    /* Sağ Alt Köşede Sabit Kedi Asistan (Miyav) */
+    /* Sağ Alt Köşede Sabit Kedi Asistan (LinCat) */
     .floating-mascot {
         position: fixed;
         bottom: 20px;
@@ -31,16 +31,16 @@ st.markdown(
         z-index: 9999;
         background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
         border: 3px solid #38BDF8;
-        border-radius: 20px;
-        padding: 12px 18px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border-radius: 22px;
+        padding: 14px 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         display: flex;
         align-items: center;
-        max-width: 320px;
+        max-width: 340px;
     }
     
     .mascot-img {
-        font-size: 42px;
+        font-size: 45px;
         margin-right: 12px;
     }
     
@@ -96,33 +96,45 @@ st.markdown(
         margin-bottom: 10px;
         box-shadow: 0 8px 20px rgba(0,0,0,0.4);
     }
+    
+    .sentence-box {
+        background: #1E293B;
+        border: 2px dashed #38BDF8;
+        border-radius: 16px;
+        padding: 15px;
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: #38BDF8;
+        margin-bottom: 20px;
+    }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
 # LOGO KODU (SVG)
-LINGOBABY_LOGO_SVG = """
+LINGOCAT_LOGO_SVG = """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 130" width="100%" height="100">
   <rect x="10" y="10" width="480" height="110" rx="20" fill="#1E293B" stroke="#38BDF8" stroke-width="4"/>
-  <text x="250" y="70" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="44" fill="#38BDF8">Lingo<tspan fill="#10B981">Baby</tspan></text>
-  <text x="250" y="98" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="600" font-size="14" fill="#94A3B8">TÜBİTAK Uyumlu İnteraktif İngilizce Müfredatı</text>
+  <text x="250" y="70" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="44" fill="#38BDF8">Lingo<tspan fill="#10B981">Cat</tspan></text>
+  <text x="250" y="98" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="600" font-size="14" fill="#94A3B8">MEB Maarif Model Uyumlu Akıllı İngilizce</text>
 </svg>
 """
 
 # ==========================================
-# TÜM SINIFLARIN DETAYLI VE GENİŞ MEB MÜFREDATI
+# TÜM SINIFLARIN KAPSAMLI MEB MÜFREDATI VE CÜMLELERİ
 # ==========================================
 CURRICULUM_DATA = {
     "kindergarten": {
         "title": "Anaokulu",
         "icon": "🎨",
-        "description": "Saf renkler, 1. Şahıs Safari turu, sayılar ve duygular.",
+        "description": "Saf renkler, Zoo Safari, sayılar ve duygular.",
         "levels": [
             {
                 "id": "k_1",
                 "title": "1. Level: Pure Colors (Saf Renkler)",
-                "topic_desc": "Tek renk alanlarıyla renkleri karıştırmadan öğrenelim.",
+                "topic_desc": "Saf renk tonlarını tanıyalım.",
                 "type": "colors",
                 "words": [
                     {"en": "Red", "tr": "Kırmızı", "hex": "#FF0000"},
@@ -131,13 +143,24 @@ CURRICULUM_DATA = {
                     {"en": "Green", "tr": "Yeşil", "hex": "#008000"},
                     {"en": "Orange", "tr": "Turuncu", "hex": "#FFA500"},
                     {"en": "Purple", "tr": "Mor", "hex": "#800080"},
-                    {"en": "Pink", "tr": "Pembe", "hex": "#FFC0CB"},
+                ],
+                "sentences": [
+                    {
+                        "tr": "Bu kırmızı bir elma.",
+                        "en_target": "This is a red apple",
+                        "words": ["This", "is", "a", "red", "apple"],
+                    },
+                    {
+                        "tr": "Gökyüzü mavidir.",
+                        "en_target": "The sky is blue",
+                        "words": ["The", "sky", "is", "blue"],
+                    },
                 ],
             },
             {
                 "id": "k_2",
-                "title": "2. Level: Zoo Safari (Hayvanat Bahçesi)",
-                "topic_desc": "1. Şahıs bakış açısıyla hayvanları tanıyalım.",
+                "title": "2. Level: Zoo Safari (Hayvanlar)",
+                "topic_desc": "Hayvanat bahçesi safari gözlemi.",
                 "type": "zoo",
                 "words": [
                     {
@@ -165,45 +188,16 @@ CURRICULUM_DATA = {
                         "sound": "Uzun Boyunlu 🦒",
                     },
                 ],
-            },
-            {
-                "id": "k_3",
-                "title": "3. Level: Numbers 1-5 (Sayılar)",
-                "topic_desc": "Temel sayıları saymayı öğrenelim.",
-                "type": "general",
-                "words": [
+                "sentences": [
                     {
-                        "en": "One",
-                        "tr": "Bir",
-                        "img": "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=500&q=80",
+                        "tr": "Bu bir aslandır.",
+                        "en_target": "This is a lion",
+                        "words": ["This", "is", "a", "lion"],
                     },
                     {
-                        "en": "Two",
-                        "tr": "İki",
-                        "img": "https://images.unsplash.com/photo-1596495578065-6e0763fa1178?w=500&q=80",
-                    },
-                    {
-                        "en": "Three",
-                        "tr": "Üç",
-                        "img": "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80",
-                    },
-                ],
-            },
-            {
-                "id": "k_4",
-                "title": "4. Level: Feelings (Duygularımız)",
-                "topic_desc": "Duyguları ifade edelim.",
-                "type": "general",
-                "words": [
-                    {
-                        "en": "Happy",
-                        "tr": "Mutlu",
-                        "img": "https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=500&q=80",
-                    },
-                    {
-                        "en": "Sad",
-                        "tr": "Üzgün",
-                        "img": "https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?w=500&q=80",
+                        "tr": "Fil çok büyüktür.",
+                        "en_target": "The elephant is big",
+                        "words": ["The", "elephant", "is", "big"],
                     },
                 ],
             },
@@ -212,12 +206,12 @@ CURRICULUM_DATA = {
     "grade_1": {
         "title": "1. Sınıf",
         "icon": "🎒",
-        "description": "Tanışma, meyveler, vücudumuz, oyuncaklar.",
+        "description": "Selamlaşma, meyveler, vücudumuz ve oyuncaklar.",
         "levels": [
             {
                 "id": "g1_1",
                 "title": "1. Level: Greetings (Selamlaşma)",
-                "topic_desc": "Selamlaşma diyalogları.",
+                "topic_desc": "Günlük tanışma diyalogları.",
                 "type": "general",
                 "words": [
                     {
@@ -231,10 +225,22 @@ CURRICULUM_DATA = {
                         "img": "https://images.unsplash.com/photo-1516726817505-f5ed825624d8?w=500&q=80",
                     },
                 ],
+                "sentences": [
+                    {
+                        "tr": "Merhaba, nasılsın?",
+                        "en_target": "Hello how are you",
+                        "words": ["Hello", "how", "are", "you"],
+                    },
+                    {
+                        "tr": "Görüşürüz hoşça kal.",
+                        "en_target": "See you goodbye",
+                        "words": ["See", "you", "goodbye"],
+                    },
+                ],
             },
             {
                 "id": "g1_2",
-                "title": "2. Level: Fruits (Lezzetli Meyveler)",
+                "title": "2. Level: Fruits (Meyveler)",
                 "topic_desc": "Taze meyveler.",
                 "type": "general",
                 "words": [
@@ -254,22 +260,16 @@ CURRICULUM_DATA = {
                         "img": "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=500&q=80",
                     },
                 ],
-            },
-            {
-                "id": "g1_3",
-                "title": "3. Level: Body Parts (Vücudumuz)",
-                "topic_desc": "Organlarımız.",
-                "type": "general",
-                "words": [
+                "sentences": [
                     {
-                        "en": "Eye",
-                        "tr": "Göz",
-                        "img": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&q=80",
+                        "tr": "Ben elma severim.",
+                        "en_target": "I like apples",
+                        "words": ["I", "like", "apples"],
                     },
                     {
-                        "en": "Hand",
-                        "tr": "El",
-                        "img": "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=500&q=80",
+                        "tr": "Muz sarıdır.",
+                        "en_target": "The banana is yellow",
+                        "words": ["The", "banana", "is", "yellow"],
                     },
                 ],
             },
@@ -283,7 +283,7 @@ CURRICULUM_DATA = {
             {
                 "id": "g2_1",
                 "title": "1. Level: Classroom Objects (Sınıf Eşyaları)",
-                "topic_desc": "Okul malzemeleri.",
+                "topic_desc": "Okul eşyaları.",
                 "type": "general",
                 "words": [
                     {
@@ -302,54 +302,30 @@ CURRICULUM_DATA = {
                         "img": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80",
                     },
                 ],
-            },
-            {
-                "id": "g2_2",
-                "title": "2. Level: Family (Ailemiz)",
-                "topic_desc": "Aile fertleri.",
-                "type": "general",
-                "words": [
+                "sentences": [
                     {
-                        "en": "Mother",
-                        "tr": "Anne",
-                        "img": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80",
+                        "tr": "Bu benim kalemim.",
+                        "en_target": "This is my pencil",
+                        "words": ["This", "is", "my", "pencil"],
                     },
                     {
-                        "en": "Father",
-                        "tr": "Baba",
-                        "img": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80",
+                        "tr": "Kitabımı aç.",
+                        "en_target": "Open your book",
+                        "words": ["Open", "your", "book"],
                     },
                 ],
-            },
-            {
-                "id": "g2_3",
-                "title": "3. Level: Vehicles (Ulaşım Araçları)",
-                "topic_desc": "Taşıtlar.",
-                "type": "general",
-                "words": [
-                    {
-                        "en": "Car",
-                        "tr": "Araba",
-                        "img": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=500&q=80",
-                    },
-                    {
-                        "en": "Bus",
-                        "tr": "Otobüs",
-                        "img": "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=500&q=80",
-                    },
-                ],
-            },
+            }
         ],
     },
     "grade_3": {
         "title": "3. Sınıf",
         "icon": "🌟",
-        "description": "Yetenekler (I can/can't), sıfatlar, evimiz ve hava durumu.",
+        "description": "Yetenekler (I can/can't), sıfatlar, hava durumu.",
         "levels": [
             {
                 "id": "g3_1",
-                "title": "1. Level: Abilities (Yetenekler)",
-                "topic_desc": "Yapabildiğimiz eylemler.",
+                "title": "1. Level: Abilities (I can / I can't)",
+                "topic_desc": "Yeteneklerimizi ifade edelim.",
                 "type": "general",
                 "words": [
                     {
@@ -362,37 +338,36 @@ CURRICULUM_DATA = {
                         "tr": "Koşmak",
                         "img": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=500&q=80",
                     },
-                ],
-            },
-            {
-                "id": "g3_2",
-                "title": "2. Level: Weather (Hava Durumu)",
-                "topic_desc": "Hava durumunu ifade edelim.",
-                "type": "general",
-                "words": [
                     {
-                        "en": "Sunny",
-                        "tr": "Güneşli",
-                        "img": "https://images.unsplash.com/photo-1617155093730-a8bf47be792d?w=500&q=80",
-                    },
-                    {
-                        "en": "Rainy",
-                        "tr": "Yağmurlu",
-                        "img": "https://images.unsplash.com/photo-1519692933481-e162a57d6721?w=500&q=80",
+                        "en": "Fly",
+                        "tr": "Uçmak",
+                        "img": "https://images.unsplash.com/photo-1444464666168-49d633b86797?w=500&q=80",
                     },
                 ],
-            },
+                "sentences": [
+                    {
+                        "tr": "Ben yüzebilirim.",
+                        "en_target": "I can swim",
+                        "words": ["I", "can", "swim"],
+                    },
+                    {
+                        "tr": "Kuşlar uçabilir.",
+                        "en_target": "Birds can fly",
+                        "words": ["Birds", "can", "fly"],
+                    },
+                ],
+            }
         ],
     },
     "grade_4": {
         "title": "4. Sınıf",
         "icon": "🚀",
-        "description": "Ülkeler, meslekler, günlük rutinler ve saatler.",
+        "description": "Ülkeler, meslekler, sınıf kuralları ve günlük rutinler.",
         "levels": [
             {
                 "id": "g4_1",
-                "title": "1. Level: Countries (Ülkeler)",
-                "topic_desc": "Dünya ülkeleri.",
+                "title": "1. Level: Countries (Ülkeler & Milletler)",
+                "topic_desc": "Where are you from?",
                 "type": "general",
                 "words": [
                     {
@@ -406,11 +381,23 @@ CURRICULUM_DATA = {
                         "img": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80",
                     },
                 ],
+                "sentences": [
+                    {
+                        "tr": "Ben Türkiye'denim.",
+                        "en_target": "I am from Turkey",
+                        "words": ["I", "am", "from", "Turkey"],
+                    },
+                    {
+                        "tr": "O İngiltere'den.",
+                        "en_target": "He is from England",
+                        "words": ["He", "is", "from", "England"],
+                    },
+                ],
             },
             {
                 "id": "g4_2",
                 "title": "2. Level: Professions (Meslekler)",
-                "topic_desc": "Meslekler.",
+                "topic_desc": "What is your job?",
                 "type": "general",
                 "words": [
                     {
@@ -422,6 +409,18 @@ CURRICULUM_DATA = {
                         "en": "Teacher",
                         "tr": "Öğretmen",
                         "img": "https://images.unsplash.com/photo-1577896851231-70ef18881754?w=500&q=80",
+                    },
+                ],
+                "sentences": [
+                    {
+                        "tr": "Ben bir öğretmenim.",
+                        "en_target": "I am a teacher",
+                        "words": ["I", "am", "a", "teacher"],
+                    },
+                    {
+                        "tr": "O bir doktordur.",
+                        "en_target": "He is a doctor",
+                        "words": ["He", "is", "a", "doctor"],
                     },
                 ],
             },
@@ -451,9 +450,15 @@ if "selected_option" not in st.session_state:
 if "is_correct" not in st.session_state:
     st.session_state.is_correct = None
 if "mascot_msg" not in st.session_state:
-    st.session_state.mascot_msg = (
-        "Merhaba! Ben Miyav 🐱 Öğrenmeye hazır mısın?"
-    )
+    st.session_state.mascot_msg = "Merhaba! Ben LinCat 🐱 Öğrenmeye hazır mısın?"
+if "sentence_idx" not in st.session_state:
+    st.session_state.sentence_idx = 0
+if "built_sentence" not in st.session_state:
+    st.session_state.built_sentence = []
+if "sentence_checked" not in st.session_state:
+    st.session_state.sentence_checked = False
+if "sentence_correct" not in st.session_state:
+    st.session_state.sentence_correct = False
 
 
 def update_mascot(msg):
@@ -465,18 +470,28 @@ def render_floating_mascot():
         f"""
         <div class="floating-mascot">
             <div class="mascot-img">🐱</div>
-            <div class="mascot-msg"><b>Miyav:</b> "{st.session_state.mascot_msg}"</div>
+            <div class="mascot-msg"><b>LinCat:</b> "{st.session_state.mascot_msg}"</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
+def speak_button(text_to_speak):
+    """Google tabanlı web ses sentezi (Web Speech API) tetikleyici buton"""
+    safe_text = text_to_speak.replace("'", "\\'")
+    html_code = f"""
+    <button onclick="let u = new SpeechSynthesisUtterance('{safe_text}'); u.lang = 'en-US'; window.speechSynthesis.speak(u);" 
+    style="background-color: #38BDF8; color: #0F172A; border: none; padding: 6px 14px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 14px; margin-top: 5px; box-shadow: 0 4px 10px rgba(56,189,248,0.3);">
+    🔊 Dinle
+    </button>
+    """
+    st.components.v1.html(html_code, height=45)
+
+
 def go_menu():
     st.session_state.screen = "menu"
-    update_mascot(
-        "Ana menüye döndük! İstediğin sınıfı seçip inceleyebilirsin."
-    )
+    update_mascot("Ana menüdeyiz. İstediğin sınıfı seçebilirsin!")
 
 
 def go_map(grade_key):
@@ -493,14 +508,17 @@ def start_level(level_data):
     st.session_state.score = 0
     st.session_state.selected_option = None
     st.session_state.is_correct = None
+    st.session_state.sentence_idx = 0
+    st.session_state.built_sentence = []
+    st.session_state.sentence_checked = False
     update_mascot(
-        f"'{level_data['title']}' dersindeyiz! Kartları inceledikten sonra teste geçebilirsin."
+        f"'{level_data['title']}' dersindeyiz! İncelemeyi tamamlayınca teste geçebilirsin."
     )
 
 
 # LOGO VE ÜST PANEL
 st.markdown(
-    f"<div class='logo-box'>{LINGOBABY_LOGO_SVG}</div>", unsafe_allow_html=True
+    f"<div class='logo-box'>{LINGOCAT_LOGO_SVG}</div>", unsafe_allow_html=True
 )
 
 col_top1, col_top2, col_top3 = st.columns([2, 1, 1])
@@ -523,7 +541,7 @@ if st.session_state.screen == "menu":
         with cols[i]:
             st.markdown(
                 f"""
-                <div style="background: #1E293B; border-radius: 20px; padding: 15px; text-align: center; border: 2px solid #334155; min-height: 210px;">
+                <div style="background: #1E293B; border-radius: 20px; padding: 15px; text-align: center; border: 2px solid #334155; min-height: 220px;">
                     <span style="font-size: 45px;">{g_info['icon']}</span>
                     <h3 style="color: #38BDF8; margin-top: 10px;">{g_info['title']}</h3>
                     <p style="color: #94A3B8; font-size: 12px;">{g_info['description']}</p>
@@ -581,7 +599,7 @@ elif st.session_state.screen == "map":
                 start_level(lvl)
                 st.rerun()
 
-# 3. DERS VE TEST EKRANI
+# 3. DERS VE TEST / CÜMLE KURMA EKRANI
 elif st.session_state.screen == "game":
     lvl_data = st.session_state.current_level
 
@@ -591,7 +609,7 @@ elif st.session_state.screen == "game":
             go_map(st.session_state.grade_key)
             st.rerun()
 
-    # Öğrenme Modu
+    # --- ÖĞRENME MODU ---
     if st.session_state.phase == "learn":
         st.markdown(f"# 📚 {lvl_data['title']}")
 
@@ -610,6 +628,7 @@ elif st.session_state.screen == "game":
                         """,
                         unsafe_allow_html=True,
                     )
+                    speak_button(w["en"])
                 else:
                     st.markdown(
                         f"""
@@ -621,6 +640,7 @@ elif st.session_state.screen == "game":
                         """,
                         unsafe_allow_html=True,
                     )
+                    speak_button(w["en"])
 
         st.write("")
         if st.button(
@@ -634,12 +654,23 @@ elif st.session_state.screen == "game":
             )
             st.rerun()
 
-    # Test Modu
+    # --- TEST MODU ---
     elif st.session_state.phase == "quiz":
         words = lvl_data["words"]
         if st.session_state.quiz_index >= len(words):
-            st.session_state.phase = "result"
-            st.rerun()
+            # Testler bitti, Cümle Kurma Moduna Geç!
+            if "sentences" in lvl_data and len(lvl_data["sentences"]) > 0:
+                st.session_state.phase = "sentence"
+                st.session_state.sentence_idx = 0
+                st.session_state.built_sentence = []
+                st.session_state.sentence_checked = False
+                update_mascot(
+                    "Harika! Şimdi Duolingo tarzı Cümle Kurma etabındayız!"
+                )
+                st.rerun()
+            else:
+                st.session_state.phase = "result"
+                st.rerun()
         else:
             current_word = words[st.session_state.quiz_index]
 
@@ -652,6 +683,7 @@ elif st.session_state.screen == "game":
                     """,
                     unsafe_allow_html=True,
                 )
+                speak_button(current_word["en"])
             elif lvl_data.get("type") == "zoo":
                 st.markdown(
                     f"""
@@ -663,6 +695,7 @@ elif st.session_state.screen == "game":
                     """,
                     unsafe_allow_html=True,
                 )
+                speak_button(current_word["en"])
             else:
                 st.markdown(
                     f"""
@@ -672,6 +705,7 @@ elif st.session_state.screen == "game":
                     """,
                     unsafe_allow_html=True,
                 )
+                speak_button(current_word["en"])
 
             # Şık Hazırlığı
             if "current_options" not in st.session_state or st.session_state.get(
@@ -739,11 +773,13 @@ elif st.session_state.screen == "game":
                             if opt == current_word["en"]:
                                 st.session_state.is_correct = True
                                 st.session_state.score += 1
-                                update_mascot("Harika! Doğru yanıt. 🎉")
+                                update_mascot(
+                                    "Harika! Doğru yanıt. LinCat seni tebrik eder! 🎉"
+                                )
                             else:
                                 st.session_state.is_correct = False
                                 update_mascot(
-                                    f"Doğru yanıt '{current_word['en']}' olmalıydı."
+                                    f"Üzülme! Doğru yanıt '{current_word['en']}' olmalıydı."
                                 )
                             st.rerun()
 
@@ -768,12 +804,130 @@ elif st.session_state.screen == "game":
                     st.session_state.is_correct = None
                     st.rerun()
 
-    # Seviye Sonu
-    elif st.session_state.phase == "result":
-        total_q = len(lvl_data["words"])
-        ratio = st.session_state.score / total_q
+    # --- CÜMLE KURMA MODU (DUOLİNGO TARZI) ---
+    elif st.session_state.phase == "sentence":
+        sentences = lvl_data.get("sentences", [])
+        if st.session_state.sentence_idx >= len(sentences):
+            st.session_state.phase = "result"
+            st.rerun()
+        else:
+            current_sent = sentences[st.session_state.sentence_idx]
+            target_words = current_sent["words"]
 
-        stars = 3 if ratio == 1.0 else (2 if ratio >= 0.5 else 1)
+            # Kelimeleri her soru başında ilk kez karıştır
+            if "shuffled_words" not in st.session_state or st.session_state.get(
+                "last_sent_idx"
+            ) != st.session_state.sentence_idx:
+                sw = target_words.copy()
+                random.shuffle(sw)
+                st.session_state.shuffled_words = sw
+                st.session_state.built_sentence = []
+                st.session_state.sentence_checked = False
+                st.session_state.last_sent_idx = st.session_state.sentence_idx
+
+            update_mascot(
+                f"LinCat diyor ki: Aşağıdaki Türkçe cümleyi İngilizceye doğru sırayla kur!"
+            )
+
+            st.markdown(
+                f"### 🧩 Cümle Kurma Etabı ({st.session_state.sentence_idx + 1}/{len(sentences)})"
+            )
+            st.info(f"🇹🇷 Türkçe Karşılığı: **{current_sent['tr']}**")
+
+            # Boş Cümle Yeri (Oluşturulan Cümle)
+            built_text = (
+                " ".join(st.session_state.built_sentence)
+                if st.session_state.built_sentence
+                else "(Kelimeleri aşağıdan seçerek buraya diz)"
+            )
+            st.markdown(
+                f"<div class='sentence-box'>{built_text}</div>",
+                unsafe_allow_html=True,
+            )
+
+            if st.session_state.built_sentence:
+                speak_button(" ".join(st.session_state.built_sentence))
+
+            # Kontrol Edilmediyse Seçilebilir Kelime Kartları
+            if not st.session_state.sentence_checked:
+                st.write("Seçebileceğin Kelimeler:")
+                cols = st.columns(len(st.session_state.shuffled_words))
+                for idx, w in enumerate(st.session_state.shuffled_words):
+                    with cols[idx]:
+                        if st.button(w, key=f"word_btn_{idx}"):
+                            st.session_state.built_sentence.append(w)
+                            st.session_state.shuffled_words.pop(idx)
+                            st.rerun()
+
+                st.write("")
+                c_a, c_b = st.columns(2)
+                with c_a:
+                    if st.button(
+                        "↩️ Sıfırla",
+                        use_container_width=True,
+                        type="secondary",
+                    ):
+                        sw = target_words.copy()
+                        random.shuffle(sw)
+                        st.session_state.shuffled_words = sw
+                        st.session_state.built_sentence = []
+                        st.rerun()
+                with c_b:
+                    if st.button(
+                        "✅ Kontrol Et",
+                        use_container_width=True,
+                        type="primary",
+                    ):
+                        st.session_state.sentence_checked = True
+                        user_str = " ".join(st.session_state.built_sentence)
+                        target_str = " ".join(target_words)
+                        if user_str.lower() == target_str.lower():
+                            st.session_state.sentence_correct = True
+                            st.session_state.score += 1
+                            update_mascot("Harika! Cümleyi tam 12'den vurdun! 🌟")
+                        else:
+                            st.session_state.sentence_correct = False
+                            update_mascot(
+                                f"Yanlış oldu. Doğrusu: '{target_str}'"
+                            )
+                        st.rerun()
+            else:
+                # Kontrol Edildi Sonrası Geri Bildirim
+                if st.session_state.sentence_correct:
+                    st.markdown(
+                        "<div class='correct-led'>🟢 CÜMLE DOĞRU! HARİKASIN!</div>",
+                        unsafe_allow_html=True,
+                    )
+                    st.components.v1.html(
+                        '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" type="audio/mpeg"></audio>',
+                        height=0,
+                    )
+                else:
+                    st.markdown(
+                        f"<div class='wrong-led'>🔴 YANLIŞ!<br>Doğru Sıralama: <b>{' '.join(target_words)}</b></div>",
+                        unsafe_allow_html=True,
+                    )
+                    st.components.v1.html(
+                        '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3" type="audio/mpeg"></audio>',
+                        height=0,
+                    )
+
+                if st.button(
+                    "Sonraki Cümle ➡️", type="primary", use_container_width=True
+                ):
+                    st.session_state.sentence_idx += 1
+                    st.session_state.built_sentence = []
+                    st.session_state.sentence_checked = False
+                    st.rerun()
+
+    # --- SEVİYE SONU ---
+    elif st.session_state.phase == "result":
+        total_q = len(lvl_data["words"]) + len(
+            lvl_data.get("sentences", [])
+        )
+        ratio = st.session_state.score / total_q if total_q > 0 else 1.0
+
+        stars = 3 if ratio >= 0.8 else (2 if ratio >= 0.4 else 1)
 
         lvl_id = lvl_data["id"]
         st.session_state.stars_earned[lvl_id] = max(
@@ -781,7 +935,7 @@ elif st.session_state.screen == "game":
         )
 
         update_mascot(
-            f"Tebrikler! Seviye başarıyla tamamlandı. Kazanılan Yıldız: {stars}"
+            f"Tebrikler! Seviyeyi başarıyla bitirdin! LinCat seni alkışlıyor! 🐱🏆"
         )
 
         st.markdown(
@@ -789,12 +943,14 @@ elif st.session_state.screen == "game":
             unsafe_allow_html=True,
         )
         st.markdown(
-            f"<h3 style='text-align: center;'>Başarı Skoru: {st.session_state.score} / {total_q}</h3>",
+            f"<h3 style='text-align: center;'>Toplam Başarı Skoru: {st.session_state.score} / {total_q}</h3>",
             unsafe_allow_html=True,
         )
 
         if st.button(
-            "🗺️ Haritaya Dön", type="primary", use_container_width=True
+            "🗺️ Haritaya Dön ve İlerle",
+            type="primary",
+            use_container_width=True,
         ):
             go_map(st.session_state.grade_key)
             st.rerun()
