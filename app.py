@@ -1,41 +1,66 @@
 import random
 import streamlit as st
 
-# Sayfa Yapılandırması
+# Sayfa Yapılandırması (Geniş Ekran ve Çocuk Odaklı Tema)
 st.set_page_config(
-    page_title="LingoKids - Duolingo & MentalUP World",
-    page_icon="🦉",
+    page_title="LingoBaby - Çocuklar İçin İnteraktif İngilizce",
+    page_icon="🐣",
     layout="wide",
 )
 
-# Duolingo / MentalUP Tarzı Özel CSS ve LED Işık Efektleri
+# Duolingo & MentalUP Tarzı Özel CSS, LED Işık Efektleri ve Animasyonlar
 st.markdown(
     """
     <style>
     .main {
-        background-color: #131927;
+        background-color: #0F172A;
         color: white;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     .stButton>button {
-        border-radius: 16px;
+        border-radius: 18px;
         font-weight: 800;
         font-size: 18px;
-        padding: 12px 24px;
+        padding: 14px 28px;
         transition: all 0.2s ease-in-out;
+        box-shadow: 0 6px 0 #1E293B;
     }
-    /* Yeşil LED efekti */
+    .stButton>button:active {
+        transform: translateY(4px);
+        box-shadow: 0 2px 0 #1E293B;
+    }
+    /* Yeşil LED Canlı Işık Efekti */
     .correct-led {
-        background-color: #2ecc71 !important;
+        background-color: #10B981 !important;
         color: white !important;
-        box-shadow: 0 0 20px #2ecc71, 0 0 40px #2ecc71 !important;
-        border: 2px solid #27ae60 !important;
+        box-shadow: 0 0 25px #10B981, 0 0 50px #10B981 !important;
+        border: 3px solid #34D399 !important;
+        border-radius: 20px;
+        padding: 18px;
+        text-align: center;
+        font-weight: 900;
+        font-size: 22px;
+        margin-bottom: 15px;
     }
-    /* Kırmızı LED efekti */
+    /* Kırmızı LED Canlı Işık Efekti */
     .wrong-led {
-        background-color: #e74c3c !important;
+        background-color: #EF4444 !important;
         color: white !important;
-        box-shadow: 0 0 20px #e74c3c, 0 0 40px #e74c3c !important;
-        border: 2px solid #c0392b !important;
+        box-shadow: 0 0 25px #EF4444, 0 0 50px #EF4444 !important;
+        border: 3px solid #F87171 !important;
+        border-radius: 20px;
+        padding: 18px;
+        text-align: center;
+        font-weight: 900;
+        font-size: 22px;
+        margin-bottom: 15px;
+    }
+    .word-card {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+        border-radius: 24px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
     </style>
 """,
@@ -43,132 +68,159 @@ st.markdown(
 )
 
 # ==========================================
-# MEB MÜFREDATINA UYGUN AŞIRI DETAYLI MÜFREDAT
+# ZENGİN VE UZATILMIŞ MEB MÜFREDATI (GERÇEK RESİMLER)
 # ==========================================
 CURRICULUM_DATA = {
     "kindergarten": {
         "title": "Anaokulu (Preschool)",
         "icon": "🎨",
-        "description": "Sesler, renkler, sayılar ve sevimli dostlarımızla İngilizceye ilk adım!",
+        "description": "Temel sesler, muhteşem renkler, sevimli hayvanlar ve sayılarla eğlence!",
         "levels": [
             {
                 "id": "k_1",
-                "title": "1. Level: Colors (Renkler)",
-                "topic_desc": "Görkemli renk dünyasını ve isimlerini öğrenelim.",
+                "title": "1. Level: Colors (Görkemli Renkler)",
+                "topic_desc": "Dünyayı renklendiren temel renkleri resimleriyle öğrenelim.",
                 "words": [
                     {
                         "en": "Red",
                         "tr": "Kırmızı",
-                        "emoji": "🔴",
-                        "color": "#FF4D4D",
+                        "img": "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&q=80",
+                        "color": "#EF4444",
                     },
                     {
                         "en": "Blue",
                         "tr": "Mavi",
-                        "emoji": "🔵",
-                        "color": "#4D94FF",
+                        "img": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80",
+                        "color": "#3B82F6",
                     },
                     {
                         "en": "Yellow",
                         "tr": "Sarı",
-                        "emoji": "🟡",
-                        "color": "#FFD700",
+                        "img": "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&q=80",
+                        "color": "#FBBF24",
                     },
                     {
                         "en": "Green",
                         "tr": "Yeşil",
-                        "emoji": "🟢",
-                        "color": "#4CAF50",
+                        "img": "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=400&q=80",
+                        "color": "#10B981",
                     },
                     {
                         "en": "Orange",
                         "tr": "Turuncu",
-                        "emoji": "🟠",
-                        "color": "#FF9800",
+                        "img": "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=400&q=80",
+                        "color": "#F97316",
                     },
                     {
                         "en": "Purple",
                         "tr": "Mor",
-                        "emoji": "🟣",
-                        "color": "#9C27B0",
+                        "img": "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=400&q=80",
+                        "color": "#A855F7",
                     },
                     {
                         "en": "Pink",
                         "tr": "Pembe",
-                        "emoji": "🩷",
-                        "color": "#FF69B4",
+                        "img": "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&q=80",
+                        "color": "#EC4899",
+                    },
+                    {
+                        "en": "Brown",
+                        "tr": "Kahverengi",
+                        "img": "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=400&q=80",
+                        "color": "#8B5CF6",
                     },
                 ],
             },
             {
                 "id": "k_2",
-                "title": "2. Level: Animals (Hayvanlar)",
-                "topic_desc": "Sevimli hayvan dostlarımızı tanıyalım.",
+                "title": "2. Level: Animals (Sevimli Hayvanlar Krallığı)",
+                "topic_desc": "Doğadaki tatlı ve güçlü hayvan dostlarımızı keşfedelim.",
                 "words": [
                     {
                         "en": "Cat",
                         "tr": "Kedi",
-                        "emoji": "🐱",
-                        "color": "#FF9800",
+                        "img": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&q=80",
+                        "color": "#F97316",
                     },
                     {
                         "en": "Dog",
                         "tr": "Köpek",
-                        "emoji": "🐶",
-                        "color": "#795548",
+                        "img": "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=400&q=80",
+                        "color": "#B45309",
                     },
                     {
                         "en": "Bird",
                         "tr": "Kuş",
-                        "emoji": "🐦",
-                        "color": "#2196F3",
+                        "img": "https://images.unsplash.com/photo-1444464666168-49d633b86797?w=400&q=80",
+                        "color": "#06B6D4",
                     },
                     {
                         "en": "Fish",
                         "tr": "Balık",
-                        "emoji": "🐟",
-                        "color": "#00BCD4",
+                        "img": "https://images.unsplash.com/photo-1524704654690-b56c05c78a00?w=400&q=80",
+                        "color": "#3B82F6",
                     },
                     {
                         "en": "Rabbit",
                         "tr": "Tavşan",
-                        "emoji": "🐰",
-                        "color": "#E91E63",
-                    },
-                    {
-                        "en": "Duck",
-                        "tr": "Ördek",
-                        "emoji": "🦆",
-                        "color": "#8BC34A",
+                        "img": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=400&q=80",
+                        "color": "#EC4899",
                     },
                     {
                         "en": "Lion",
                         "tr": "Aslan",
-                        "emoji": "🦁",
-                        "color": "#FFB300",
+                        "img": "https://images.unsplash.com/photo-1614027164847-1b28cfe1df60?w=400&q=80",
+                        "color": "#F59E0B",
+                    },
+                    {
+                        "en": "Elephant",
+                        "tr": "Fil",
+                        "img": "https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?w=400&q=80",
+                        "color": "#64748B",
+                    },
+                    {
+                        "en": "Panda",
+                        "tr": "Panda",
+                        "img": "https://images.unsplash.com/photo-1564349683136-77e08dba1ef9?w=400&q=80",
+                        "color": "#10B981",
                     },
                 ],
             },
             {
                 "id": "k_3",
-                "title": "3. Level: Numbers 1-5 (Sayılar)",
-                "topic_desc": "1'den 5'e kadar neşeyle sayalım.",
+                "title": "3. Level: Numbers (Sayılar Dünyası 1-10)",
+                "topic_desc": "Eğlenceli sayılarla saymayı alışkanlık haline getirelim.",
                 "words": [
-                    {"en": "One", "tr": "Bir", "emoji": "1️⃣", "color": "#E91E63"},
-                    {"en": "Two", "tr": "İki", "emoji": "2️⃣", "color": "#9C27B0"},
+                    {
+                        "en": "One",
+                        "tr": "Bir",
+                        "img": "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&q=80",
+                        "color": "#EF4444",
+                    },
+                    {
+                        "en": "Two",
+                        "tr": "İki",
+                        "img": "https://images.unsplash.com/photo-1596495578065-6e0763fa1178?w=400&q=80",
+                        "color": "#3B82F6",
+                    },
                     {
                         "en": "Three",
                         "tr": "Üç",
-                        "emoji": "3️⃣",
-                        "color": "#3F51B5",
+                        "img": "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=400&q=80",
+                        "color": "#10B981",
                     },
                     {
                         "en": "Four",
                         "tr": "Dört",
-                        "emoji": "4️⃣",
-                        "color": "#009688",
+                        "img": "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=400&q=80",
+                        "color": "#F59E0B",
                     },
-                    {"en": "Five", "tr": "Beş", "emoji": "5️⃣", "color": "#FF5722"},
+                    {
+                        "en": "Five",
+                        "tr": "Beş",
+                        "img": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80",
+                        "color": "#EC4899",
+                    },
                 ],
             },
         ],
@@ -176,111 +228,104 @@ CURRICULUM_DATA = {
     "grade_1": {
         "title": "1. Sınıf (Primary Grade 1)",
         "icon": "🎒",
-        "description": "Günlük konuşmalar, lezzetli meyveler ve vücudumuzun bölümleri.",
+        "description": "Günlük tanışmalar, nefis meyveler, vücudumuz ve doğa.",
         "levels": [
             {
                 "id": "g1_1",
-                "title": "1. Level: Greetings (Selamlaşma)",
-                "topic_desc": "İngilizce selamlaşmayı ve tanışmayı öğrenelim.",
+                "title": "1. Level: Greetings (Selamlaşma & İletişim)",
+                "topic_desc": "Arkadaşlarınla İngilizce selamlaşmayı ve konuşmayı öğren.",
                 "words": [
                     {
                         "en": "Hello",
                         "tr": "Merhaba",
-                        "emoji": "👋",
-                        "color": "#4CAF50",
+                        "img": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&q=80",
+                        "color": "#10B981",
                     },
                     {
                         "en": "Goodbye",
                         "tr": "Hoşça Kal",
-                        "emoji": "🙋‍♂️",
-                        "color": "#F44336",
+                        "img": "https://images.unsplash.com/photo-1516726817505-f5ed825624d8?w=400&q=80",
+                        "color": "#EF4444",
                     },
                     {
                         "en": "Good Morning",
                         "tr": "Günaydın",
-                        "emoji": "🌅",
-                        "color": "#FFC107",
+                        "img": "https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?w=400&q=80",
+                        "color": "#F59E0B",
                     },
                     {
                         "en": "Good Night",
                         "tr": "İyi Geceler",
-                        "emoji": "🌙",
-                        "color": "#3F51B5",
-                    },
-                    {
-                        "en": "Thank you",
-                        "tr": "Teşekkür ederim",
-                        "emoji": "🙏",
-                        "color": "#009688",
+                        "img": "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=400&q=80",
+                        "color": "#6366F1",
                     },
                 ],
             },
             {
                 "id": "g1_2",
-                "title": "2. Level: Fruits (Meyveler)",
-                "topic_desc": "En sevdiğimiz taze meyveler.",
+                "title": "2. Level: Fruits (Lezzetli Taze Meyveler)",
+                "topic_desc": "En sevdiğin vitamin deposu meyveler.",
                 "words": [
                     {
                         "en": "Apple",
                         "tr": "Elma",
-                        "emoji": "🍎",
-                        "color": "#F44336",
+                        "img": "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&q=80",
+                        "color": "#EF4444",
                     },
                     {
                         "en": "Banana",
                         "tr": "Muz",
-                        "emoji": "🍌",
-                        "color": "#FFEB3B",
+                        "img": "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&q=80",
+                        "color": "#F59E0B",
                     },
                     {
                         "en": "Orange",
                         "tr": "Portakal",
-                        "emoji": "🍊",
-                        "color": "#FF9800",
+                        "img": "https://images.unsplash.com/photo-1547514701-42782101795e?w=400&q=80",
+                        "color": "#F97316",
                     },
                     {
                         "en": "Strawberry",
                         "tr": "Çilek",
-                        "emoji": "🍓",
-                        "color": "#E91E63",
+                        "img": "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=400&q=80",
+                        "color": "#EC4899",
                     },
                     {
                         "en": "Watermelon",
                         "tr": "Karpuz",
-                        "emoji": "🍉",
-                        "color": "#4CAF50",
+                        "img": "https://images.unsplash.com/photo-1587049352847-4a222e784d38?w=400&q=80",
+                        "color": "#10B981",
                     },
                 ],
             },
             {
                 "id": "g1_3",
-                "title": "3. Level: Body Parts (Vücudumuz)",
-                "topic_desc": "Organlarımızı ve vücudumuzu keşfedelim.",
+                "title": "3. Level: Body Parts (Harika Vücudumuz)",
+                "topic_desc": "Organlarımızı ve vücudumuzu yakından tanıyalım.",
                 "words": [
-                    {"en": "Eye", "tr": "Göz", "emoji": "👁️", "color": "#2196F3"},
+                    {
+                        "en": "Eye",
+                        "tr": "Göz",
+                        "img": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&q=80",
+                        "color": "#3B82F6",
+                    },
                     {
                         "en": "Ear",
                         "tr": "Kulak",
-                        "emoji": "👂",
-                        "color": "#FF9800",
+                        "img": "https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?w=400&q=80",
+                        "color": "#F59E0B",
                     },
                     {
                         "en": "Mouth",
                         "tr": "Ağız",
-                        "emoji": "👄",
-                        "color": "#E91E63",
-                    },
-                    {
-                        "en": "Nose",
-                        "tr": "Burun",
-                        "emoji": "👃",
-                        "color": "#795548",
+                        "img": "https://images.unsplash.com/photo-1588516903720-8ceb67f9ef84?w=400&q=80",
+                        "color": "#EC4899",
                     },
                     {
                         "en": "Hand",
                         "tr": "El",
-                        "emoji": "✋",
-                        "color": "#4CAF50",
+                        "img": "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=400&q=80",
+                        "color": "#10B981",
                     },
                 ],
             },
@@ -289,106 +334,98 @@ CURRICULUM_DATA = {
     "grade_2": {
         "title": "2. Sınıf (Primary Grade 2)",
         "icon": "📚",
-        "description": "Okul eşyaları, aile üyeleri, taşıtlar ve yiyecekler.",
+        "description": "Okul gereçleri, canım ailemiz, araçlar ve nefis yiyecekler.",
         "levels": [
             {
                 "id": "g2_1",
-                "title": "1. Level: Classroom (Okulumuz)",
-                "topic_desc": "Sınıfımızda ve çantamızda olan eşyalar.",
+                "title": "1. Level: Classroom Objects (Okul & Sınıf)",
+                "topic_desc": "Çantanda ve sınıfta bulunan eşyalar.",
                 "words": [
                     {
                         "en": "Pencil",
                         "tr": "Kurşun Kalem",
-                        "emoji": "✏️",
-                        "color": "#FFC107",
+                        "img": "https://images.unsplash.com/photo-1585336261026-6757f5f28ed7?w=400&q=80",
+                        "color": "#F59E0B",
                     },
                     {
                         "en": "Book",
                         "tr": "Kitap",
-                        "emoji": "📖",
-                        "color": "#2196F3",
+                        "img": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80",
+                        "color": "#3B82F6",
                     },
                     {
                         "en": "Bag",
                         "tr": "Çanta",
-                        "emoji": "🎒",
-                        "color": "#E91E63",
+                        "img": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&q=80",
+                        "color": "#EC4899",
                     },
                     {
                         "en": "Ruler",
                         "tr": "Cetvel",
-                        "emoji": "📏",
-                        "color": "#009688",
-                    },
-                    {
-                        "en": "Eraser",
-                        "tr": "Silgi",
-                        "emoji": "🧽",
-                        "color": "#9C27B0",
+                        "img": "https://images.unsplash.com/photo-1588072432836-e10032774350?w=400&q=80",
+                        "color": "#10B981",
                     },
                 ],
             },
             {
                 "id": "g2_2",
-                "title": "2. Level: Family (Ailemiz)",
-                "topic_desc": "Sevgili aile bireylerimizin isimleri.",
+                "title": "2. Level: Family Members (Canım Ailemiz)",
+                "topic_desc": "Sevgili aile fertlerimizin isimlerini öğrenelim.",
                 "words": [
                     {
                         "en": "Mother",
                         "tr": "Anne",
-                        "emoji": "👩",
-                        "color": "#E91E63",
+                        "img": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80",
+                        "color": "#EC4899",
                     },
                     {
                         "en": "Father",
                         "tr": "Baba",
-                        "emoji": "👨",
-                        "color": "#1976D2",
+                        "img": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
+                        "color": "#3B82F6",
                     },
                     {
                         "en": "Brother",
                         "tr": "Erkek Kardeş",
-                        "emoji": "👦",
-                        "color": "#4CAF50",
-                    },
-                    {
-                        "en": "Sister",
-                        "tr": "Kız Kardeş",
-                        "emoji": "👧",
-                        "color": "#FF9800",
+                        "img": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&q=80",
+                        "color": "#10B981",
                     },
                     {
                         "en": "Baby",
                         "tr": "Bebek",
-                        "emoji": "👶",
-                        "color": "#00BCD4",
+                        "img": "https://images.unsplash.com/photo-1519689680058-324335c77eba?w=400&q=80",
+                        "color": "#06B6D4",
                     },
                 ],
             },
             {
                 "id": "g2_3",
-                "title": "3. Level: Vehicles (Araçlar)",
-                "topic_desc": "Hızlı ve eğlenceli ulaşım araçları.",
+                "title": "3. Level: Vehicles (Ulaşım Araçları)",
+                "topic_desc": "Hızlı ve heyecanlı araçları yakından görelim.",
                 "words": [
-                    {"en": "Car", "tr": "Araba", "emoji": "🚗", "color": "#F44336"},
-                    {"en": "Bus", "tr": "Otobüs", "emoji": "🚌", "color": "#FFC107"},
+                    {
+                        "en": "Car",
+                        "tr": "Araba",
+                        "img": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&q=80",
+                        "color": "#EF4444",
+                    },
+                    {
+                        "en": "Bus",
+                        "tr": "Otobüs",
+                        "img": "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=400&q=80",
+                        "color": "#F59E0B",
+                    },
                     {
                         "en": "Plane",
                         "tr": "Uçak",
-                        "emoji": "✈️",
+                        "img": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80",
                         "color": "#0288D1",
-                    },
-                    {
-                        "en": "Bicycle",
-                        "tr": "Bisiklet",
-                        "emoji": "🚲",
-                        "color": "#4CAF50",
                     },
                     {
                         "en": "Train",
                         "tr": "Tren",
-                        "emoji": "🚂",
-                        "color": "#795548",
+                        "img": "https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=400&q=80",
+                        "color": "#8B5CF6",
                     },
                 ],
             },
@@ -409,6 +446,8 @@ if "unlocked_levels" not in st.session_state:
     st.session_state.unlocked_levels = {"k_1": True}
 if "stars_earned" not in st.session_state:
     st.session_state.stars_earned = {}
+if "streak" not in st.session_state:
+    st.session_state.streak = 1
 if "quiz_index" not in st.session_state:
     st.session_state.quiz_index = 0
 if "score" not in st.session_state:
@@ -438,26 +477,25 @@ def start_level(level_data):
     st.session_state.is_correct = None
 
 
-# ÜST PANEL / SCOREBAR
-col_top1, col_top2 = st.columns([4, 1])
+# ÜST PANEL / GAMIFICATION HEADER
+col_top1, col_top2, col_top3 = st.columns([3, 1, 1])
 with col_top1:
-    st.markdown(
-        "### 🦉 LingoKids - Duolingo & MentalUP World",
-        unsafe_allow_html=True,
-    )
+    st.markdown("## 🐣 LingoBaby World", unsafe_allow_html=True)
 with col_top2:
+    st.markdown(f"### 🔥 Seri: {st.session_state.streak} Gün")
+with col_top3:
     total_stars = sum(st.session_state.stars_earned.values())
-    st.markdown(f"### ⭐ Toplam Yıldız: {total_stars}")
+    st.markdown(f"### ⭐ Yıldız: {total_stars}")
 st.markdown("---")
 
-# 1. ANA MENÜ EKRANI
+# 1. ANA MENÜ EKRANI (LingoBaby World)
 if st.session_state.screen == "menu":
     st.markdown(
-        "<h1 style='text-align: center; color: #58CC02;'>Öğrenme Yolculuğuna Hoş Geldin! 🎉</h1>",
+        "<h1 style='text-align: center; color: #10B981;'>Dünyanın En Eğlenceli İngilizce Macera Dünyası! 🎉</h1>",
         unsafe_allow_html=True,
     )
     st.markdown(
-        "<h3 style='text-align: center; color: #A0A0B2;'>Lütfen sınıf düzeyini seç ve maceraya başla:</h3>",
+        "<h3 style='text-align: center; color: #94A3B8;'>Lütfen kendi eğitim seviyeni seç ve öğrenmeye başla:</h3>",
         unsafe_allow_html=True,
     )
     st.write("")
@@ -467,17 +505,17 @@ if st.session_state.screen == "menu":
         with cols[i]:
             st.markdown(
                 f"""
-                <div style="background-color: #1F2937; padding: 25px; border-radius: 20px; text-align: center; border: 3px solid #374151; min-height: 280px;">
-                    <span style="font-size: 60px;">{g_info['icon']}</span>
-                    <h2 style="color: #58CC02; margin-top: 10px;">{g_info['title']}</h2>
-                    <p style="color: #9CA3AF; font-size: 15px;">{g_info['description']}</p>
+                <div class="word-card">
+                    <span style="font-size: 70px;">{g_info['icon']}</span>
+                    <h2 style="color: #10B981; margin-top: 15px;">{g_info['title']}</h2>
+                    <p style="color: #94A3B8; font-size: 15px; min-height: 50px;">{g_info['description']}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
             st.write("")
             if st.button(
-                "BAŞLA 🚀",
+                "MACERAYA BAŞLA 🚀",
                 key=f"btn_{g_key}",
                 use_container_width=True,
                 type="primary",
@@ -485,7 +523,7 @@ if st.session_state.screen == "menu":
                 go_map(g_key)
                 st.rerun()
 
-# 2. HARİTA EKRANI (MAP VIEW)
+# 2. SEVİYE VE GÖREV HARİTASI
 elif st.session_state.screen == "map":
     grade_info = CURRICULUM_DATA[st.session_state.grade_key]
     if st.button("⬅ Ana Menüye Dön"):
@@ -493,9 +531,9 @@ elif st.session_state.screen == "map":
         st.rerun()
 
     st.markdown(
-        f"# {grade_info['icon']} {grade_info['title']} - Macera Haritası"
+        f"# {grade_info['icon']} {grade_info['title']} - Görev Haritası"
     )
-    st.write("Seviyeleri sırasıyla tamamla ve yıldızları topla!")
+    st.write("Kilitleri aç, görevleri tamamla ve en yüksek yıldızı topla!")
 
     levels = grade_info["levels"]
     cols = st.columns(len(levels))
@@ -511,14 +549,14 @@ elif st.session_state.screen == "map":
                 else ("AÇIK 🔓" if is_unlocked else "KİLİTLİ 🔒")
             )
 
-            card_bg = "#10B981" if is_unlocked else "#374151"
+            card_bg = "#10B981" if is_unlocked else "#334155"
 
             st.markdown(
                 f"""
-                <div style="background-color: {card_bg}; padding: 20px; border-radius: 20px; text-align: center; color: white;">
+                <div style="background-color: {card_bg}; padding: 25px; border-radius: 24px; text-align: center; color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
                     <h2>Level {idx+1}</h2>
-                    <p style="font-size: 15px; font-weight: bold;">{lvl['title'].split(':')[1] if ':' in lvl['title'] else lvl['title']}</p>
-                    <p style="font-size: 18px;">{star_str}</p>
+                    <p style="font-size: 16px; font-weight: bold;">{lvl['title'].split(':')[1] if ':' in lvl['title'] else lvl['title']}</p>
+                    <p style="font-size: 20px;">{star_str}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -527,7 +565,7 @@ elif st.session_state.screen == "map":
 
             if is_unlocked:
                 if st.button(
-                    "OYNA ▶️",
+                    "BAŞLA ▶️",
                     key=f"lvl_btn_{lvl_id}",
                     use_container_width=True,
                     type="primary",
@@ -542,26 +580,28 @@ elif st.session_state.screen == "map":
                     use_container_width=True,
                 )
 
-# 3. DERS VE TEST EKRANI
+# 3. İNTERAKTİF DERS VE OYUN MODÜLÜ
 elif st.session_state.screen == "game":
     lvl_data = st.session_state.current_level
     if st.button("🗺️ Haritaya Dön"):
         go_map(st.session_state.grade_key)
         st.rerun()
 
+    # Öğrenme Aşaması
     if st.session_state.phase == "learn":
         st.markdown(f"# 📚 DERS: {lvl_data['title']}")
         st.info(f"💡 {lvl_data['topic_desc']}")
 
-        cols = st.columns(len(lvl_data["words"]))
+        cols = st.columns(min(4, len(lvl_data["words"])))
         for i, w in enumerate(lvl_data["words"]):
-            with cols[i]:
+            col_target = cols[i % 4]
+            with col_target:
                 st.markdown(
                     f"""
-                    <div style="background-color: #1F2937; padding: 20px; border-radius: 20px; text-align: center; border: 3px solid {w['color']};">
-                        <span style="font-size: 55px;">{w['emoji']}</span>
+                    <div class="word-card" style="border: 3px solid {w['color']}; margin-bottom: 20px;">
+                        <img src="{w['img']}" style="width: 100%; height: 160px; object-fit: cover; border-radius: 16px;">
                         <h3 style="color: {w['color']}; margin-top: 10px;">{w['en']}</h3>
-                        <p style="color: #9CA3AF; font-size: 16px;">{w['tr']}</p>
+                        <p style="color: #94A3B8; font-size: 16px;">{w['tr']}</p>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -569,13 +609,14 @@ elif st.session_state.screen == "game":
 
         st.write("")
         if st.button(
-            "🎮 Öğrendim, Teste Başla!",
+            "🎮 Hepsini İnceledim, Alıştırmaya Başla!",
             type="primary",
             use_container_width=True,
         ):
             st.session_state.phase = "quiz"
             st.rerun()
 
+    # Test / Soru Aşaması
     elif st.session_state.phase == "quiz":
         words = lvl_data["words"]
         if st.session_state.quiz_index >= len(words):
@@ -589,16 +630,21 @@ elif st.session_state.screen == "game":
                 text=f"Soru {st.session_state.quiz_index + 1} / {len(words)}",
             )
             st.markdown(
-                "<h2 style='text-align: center;'>Görselin İngilizce karşılığı nedir?</h2>",
+                "<h2 style='text-align: center;'>Aşağıdaki resmin İngilizce ismi nedir?</h2>",
                 unsafe_allow_html=True,
             )
 
+            # Büyük Görsel
             st.markdown(
-                f"<div style='text-align: center; font-size: 100px; margin: 10px;'>{current_word['emoji']}</div>",
+                f"""
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="{current_word['img']}" style="width: 320px; height: 220px; object-fit: cover; border-radius: 24px; border: 4px solid #10B981; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                </div>
+                """,
                 unsafe_allow_html=True,
             )
 
-            # Şıkları OLUŞTURMA
+            # Şıkları Oluşturma
             if "current_options" not in st.session_state or st.session_state.get(
                 "last_q_idx"
             ) != st.session_state.quiz_index:
@@ -631,24 +677,21 @@ elif st.session_state.screen == "game":
             for i, opt in enumerate(options):
                 col = c1 if i % 2 == 0 else c2
                 with col:
-                    # LED Renk Durumunu Belirleme
                     is_this_selected = (
                         st.session_state.selected_option == opt
                     )
                     is_correct_opt = opt == current_word["en"]
 
-                    btn_type = "secondary"
-
-                    # Seçim yapıldıysa LED Renklerini Uygula
+                    # Cevap Verildikten Sonra LED Efektleri
                     if st.session_state.selected_option is not None:
                         if is_correct_opt:
                             st.markdown(
-                                f"<div class='correct-led' style='padding: 15px; border-radius: 16px; text-align: center; font-weight: bold; font-size: 20px; margin-bottom: 15px;'>🟢 {opt} (DOĞRU)</div>",
+                                f"<div class='correct-led'>🟢 {opt} (DOĞRU)</div>",
                                 unsafe_allow_html=True,
                             )
                         elif is_this_selected and not st.session_state.is_correct:
                             st.markdown(
-                                f"<div class='wrong-led' style='padding: 15px; border-radius: 16px; text-align: center; font-weight: bold; font-size: 20px; margin-bottom: 15px;'>🔴 {opt} (YANLIŞ)</div>",
+                                f"<div class='wrong-led'>🔴 {opt} (YANLIŞ)</div>",
                                 unsafe_allow_html=True,
                             )
                         else:
@@ -672,18 +715,18 @@ elif st.session_state.screen == "game":
                                 st.session_state.is_correct = False
                             st.rerun()
 
-            # Cevap Verildikten Sonraki Geri Bildirim ve "Sonraki Soru" Butonu
+            # Cevap Verildiğinde Ses ve Geri Bildirim
             if st.session_state.selected_option is not None:
                 st.write("")
                 if st.session_state.is_correct:
-                    st.success("🎉 TEBRİKLER! Doğru Cevap!")
+                    st.success("🎉 BRAVO! Doğru Cevap!")
                     st.components.v1.html(
                         '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" type="audio/mpeg"></audio>',
                         height=0,
                     )
                 else:
                     st.error(
-                        f"😅 Yanlış Cevap! Doğrusu: {current_word['en']}"
+                        f"😅 Neredeyse Oluyordu! Doğrusu: {current_word['en']}"
                     )
                     st.components.v1.html(
                         '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3" type="audio/mpeg"></audio>',
@@ -698,6 +741,7 @@ elif st.session_state.screen == "game":
                     st.session_state.is_correct = None
                     st.rerun()
 
+    # Sonuç Ekrani
     elif st.session_state.phase == "result":
         total_q = len(lvl_data["words"])
         ratio = st.session_state.score / total_q
@@ -721,7 +765,7 @@ elif st.session_state.screen == "game":
             st.session_state.unlocked_levels[next_lvl_id] = True
 
         st.markdown(
-            "<h1 style='text-align: center; color: #FFD700;'>TEBRİKLER! LEVEL TAMAMLANDI! 🏆</h1>",
+            "<h1 style='text-align: center; color: #FBBF24;'>TEBRİKLER! LEVEL TAMAMLANDI! 🏆</h1>",
             unsafe_allow_html=True,
         )
         st.markdown(
