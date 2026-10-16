@@ -3,12 +3,12 @@ import streamlit as st
 
 # Sayfa Yapılandırması
 st.set_page_config(
-    page_title="LingoBaby - Akademik İngilizce Öğrenme Platformu",
+    page_title="LingoBaby - Akıllı İngilizce Öğrenme Platformu",
     page_icon="🐱",
     layout="wide",
 )
 
-# TÜBİTAK Proje Standartlarına Uygun Modern ve Şık Tasarım CSS
+# TÜBİTAK Standartlarında UI & LED Geri Bildirim CSS
 st.markdown(
     """
     <style>
@@ -18,13 +18,12 @@ st.markdown(
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* Logo Konteyner */
     .logo-box {
         text-align: center;
         margin-bottom: 20px;
     }
     
-    /* Sağ Alt Köşede Sabit Kedi Asistan (Miyav) */
+    /* Sağ Alt Kendi Sabit Kedi Asistan (Miyav) */
     .floating-mascot {
         position: fixed;
         bottom: 25px;
@@ -37,11 +36,11 @@ st.markdown(
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         display: flex;
         align-items: center;
-        max-width: 320px;
+        max-width: 340px;
     }
     
     .mascot-img {
-        font-size: 50px;
+        font-size: 48px;
         margin-right: 12px;
     }
     
@@ -51,7 +50,7 @@ st.markdown(
         font-weight: 600;
     }
 
-    /* Canlı Yeşil LED Geri Bildirimi */
+    /* Doğru Şık LED Efekti */
     .correct-led {
         background-color: #10B981 !important;
         color: white !important;
@@ -61,11 +60,11 @@ st.markdown(
         padding: 16px;
         text-align: center;
         font-weight: 900;
-        font-size: 22px;
+        font-size: 20px;
         margin-bottom: 15px;
     }
     
-    /* Canlı Kırmızı LED Geri Bildirimi */
+    /* Yanlış Şık LED Efekti */
     .wrong-led {
         background-color: #EF4444 !important;
         color: white !important;
@@ -75,7 +74,7 @@ st.markdown(
         padding: 16px;
         text-align: center;
         font-weight: 900;
-        font-size: 22px;
+        font-size: 20px;
         margin-bottom: 15px;
     }
     
@@ -88,66 +87,58 @@ st.markdown(
         box-shadow: 0 12px 30px rgba(0,0,0,0.6);
         margin-bottom: 20px;
     }
+    
+    .color-block {
+        width: 100%;
+        height: 180px;
+        border-radius: 20px;
+        border: 4px solid white;
+        margin-bottom: 10px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# LINGOBABY LOGO (SVG)
+# KORUMALI LOGO (SVG)
 LINGOBABY_LOGO_SVG = """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 160" width="100%" height="120">
-  <rect x="10" y="10" width="480" height="140" rx="30" fill="#1E293B" stroke="#38BDF8" stroke-width="6"/>
-  <text x="250" y="95" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="52" fill="#38BDF8">Lingo<tspan fill="#10B981">Baby</tspan></text>
-  <text x="250" y="125" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="600" font-size="16" fill="#94A3B8">TÜBİTAK Proje Tabanlı İngilizce Eğitim Platformu</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 140" width="100%" height="110">
+  <rect x="10" y="10" width="480" height="120" rx="25" fill="#1E293B" stroke="#38BDF8" stroke-width="5"/>
+  <text x="250" y="80" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="48" fill="#38BDF8">Lingo<tspan fill="#10B981">Baby</tspan></text>
+  <text x="250" y="110" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="600" font-size="15" fill="#94A3B8">MEB İnteraktif İngilizce Öğrenme Platformu</text>
 </svg>
 """
 
 # ==========================================
-# TÜM MEB MÜFREDATI - %100 GERÇEK FOTOĞRAFLAR
+# TÜM MEB MÜFREDATI - SAF RENKLER VE GERÇEK FOTOĞRAFLAR
 # ==========================================
 CURRICULUM_DATA = {
     "kindergarten": {
         "title": "Anaokulu",
         "icon": "🎨",
-        "description": "Saf renkler, gerçek hayvanat bahçesi safari turu ve sayılar.",
+        "description": "Saf renkler, 1. Şahıs Safari turu, sayılar ve temel kavramlar.",
         "levels": [
             {
                 "id": "k_1",
-                "title": "1. Level: Pure Colors (Gerçek Renk Nesneleri)",
-                "topic_desc": "Günlük hayatta renkleri gerçek nesne fotoğraflarıyla öğrenelim.",
+                "title": "1. Level: Pure Colors (Saf Renkler)",
+                "topic_desc": "Sadece belirtilen saf renk tonlarını tanıyalım.",
                 "type": "colors",
                 "words": [
-                    {
-                        "en": "Red",
-                        "tr": "Kırmızı",
-                        "img": "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=500&q=80",
-                    },
-                    {
-                        "en": "Blue",
-                        "tr": "Mavi",
-                        "img": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&q=80",
-                    },
-                    {
-                        "en": "Yellow",
-                        "tr": "Sarı",
-                        "img": "https://images.unsplash.com/photo-1587393859424-e87e51c43817?w=500&q=80",
-                    },
-                    {
-                        "en": "Green",
-                        "tr": "Yeşil",
-                        "img": "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=500&q=80",
-                    },
-                    {
-                        "en": "Orange",
-                        "tr": "Turuncu",
-                        "img": "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=500&q=80",
-                    },
+                    {"en": "Red", "tr": "Kırmızı", "hex": "#FF0000"},
+                    {"en": "Blue", "tr": "Mavi", "hex": "#0000FF"},
+                    {"en": "Yellow", "tr": "Sarı", "hex": "#FFFF00"},
+                    {"en": "Green", "tr": "Yeşil", "hex": "#008000"},
+                    {"en": "Orange", "tr": "Turuncu", "hex": "#FFA500"},
+                    {"en": "Purple", "tr": "Mor", "hex": "#800080"},
+                    {"en": "Pink", "tr": "Pembe", "hex": "#FFC0CB"},
+                    {"en": "Brown", "tr": "Kahverengi", "hex": "#8B4513"},
                 ],
             },
             {
                 "id": "k_2",
-                "title": "2. Level: Real Zoo Safari (Gerçek Hayvanlar)",
-                "topic_desc": "Doğal yaşam ortamındaki gerçek hayvanları gözlemleyelim.",
+                "title": "2. Level: Zoo Safari (Hayvanat Bahçesi)",
+                "topic_desc": "1. Şahıs gözlem modu ile canlıları yakından tanıyalım.",
                 "type": "zoo",
                 "words": [
                     {
@@ -176,17 +167,40 @@ CURRICULUM_DATA = {
                     },
                 ],
             },
+            {
+                "id": "k_3",
+                "title": "3. Level: Numbers 1-5 (Sayılar)",
+                "topic_desc": "Temel sayıları öğrenelim.",
+                "type": "general",
+                "words": [
+                    {
+                        "en": "One",
+                        "tr": "Bir",
+                        "img": "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=500&q=80",
+                    },
+                    {
+                        "en": "Two",
+                        "tr": "İki",
+                        "img": "https://images.unsplash.com/photo-1596495578065-6e0763fa1178?w=500&q=80",
+                    },
+                    {
+                        "en": "Three",
+                        "tr": "Üç",
+                        "img": "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80",
+                    },
+                ],
+            },
         ],
     },
     "grade_1": {
         "title": "1. Sınıf",
         "icon": "🎒",
-        "description": "Tanışma, taze meyveler ve vücudumuz.",
+        "description": "Tanışma, taze meyveler, vücudumuz ve oyuncaklar.",
         "levels": [
             {
                 "id": "g1_1",
-                "title": "1. Level: Greetings (Gerçek İnsan İletişimi)",
-                "topic_desc": "Günlük hayatta selamlaşma ve tanışma diyalogları.",
+                "title": "1. Level: Greetings (Selamlaşma)",
+                "topic_desc": "Günlük tanışma diyalogları.",
                 "type": "general",
                 "words": [
                     {
@@ -203,8 +217,8 @@ CURRICULUM_DATA = {
             },
             {
                 "id": "g1_2",
-                "title": "2. Level: Fruits (Taze Meyveler)",
-                "topic_desc": "Gerçek meyve görselleriyle kelime öğrenimi.",
+                "title": "2. Level: Fruits (Meyveler)",
+                "topic_desc": "Taze ve doğal meyve isimleri.",
                 "type": "general",
                 "words": [
                     {
@@ -229,12 +243,12 @@ CURRICULUM_DATA = {
     "grade_2": {
         "title": "2. Sınıf",
         "icon": "📚",
-        "description": "Okul gereçleri, aile bireyleri ve taşıtlar.",
+        "description": "Okul gereçleri, aile bireyleri, taşıtlar ve gıdalar.",
         "levels": [
             {
                 "id": "g2_1",
-                "title": "1. Level: Classroom Objects (Okul Eşyaları)",
-                "topic_desc": "Gerçek sınıf malzemeleri ve araç-gereçler.",
+                "title": "1. Level: Classroom Objects (Sınıf Eşyaları)",
+                "topic_desc": "Okul eşyaları.",
                 "type": "general",
                 "words": [
                     {
@@ -259,12 +273,12 @@ CURRICULUM_DATA = {
     "grade_3": {
         "title": "3. Sınıf",
         "icon": "🌟",
-        "description": "Yetenekler (I can/can't), sıfatlar ve evimiz.",
+        "description": "Yetenekler (I can/can't), sıfatlar, evimiz ve hava durumu.",
         "levels": [
             {
                 "id": "g3_1",
-                "title": "1. Level: Abilities (Fiziksel Yetenekler)",
-                "topic_desc": "Aktiviteleri gerçek insan hareketleriyle eşleştirelim.",
+                "title": "1. Level: Abilities (Fiziksel Eylemler)",
+                "topic_desc": "İnsan eylemleri.",
                 "type": "general",
                 "words": [
                     {
@@ -284,12 +298,12 @@ CURRICULUM_DATA = {
     "grade_4": {
         "title": "4. Sınıf",
         "icon": "🚀",
-        "description": "Ülkeler, meslekler ve günlük rutinler.",
+        "description": "Ülkeler, meslekler, günlük rutinler ve saatler.",
         "levels": [
             {
                 "id": "g4_1",
-                "title": "1. Level: Countries & Nationalities (Ülkeler)",
-                "topic_desc": "Dünya genelinden gerçek mekan ve kültür fotoğrafları.",
+                "title": "1. Level: Countries (Ülkeler & Kültürler)",
+                "topic_desc": "Dünya ülkeleri.",
                 "type": "general",
                 "words": [
                     {
@@ -308,7 +322,7 @@ CURRICULUM_DATA = {
     },
 }
 
-# State Yönetimi
+# Session State Yönetimi
 if "screen" not in st.session_state:
     st.session_state.screen = "menu"
 if "grade_key" not in st.session_state:
@@ -330,9 +344,7 @@ if "selected_option" not in st.session_state:
 if "is_correct" not in st.session_state:
     st.session_state.is_correct = None
 if "mascot_msg" not in st.session_state:
-    st.session_state.mascot_msg = (
-        "Merhaba! Ben Miyav 🐱 TÜBİTAK projemize hoş geldin!"
-    )
+    st.session_state.mascot_msg = "Merhaba! Ben Miyav 🐱 Hoş geldin!"
 
 
 def update_mascot(msg):
@@ -353,15 +365,13 @@ def render_floating_mascot():
 
 def go_menu():
     st.session_state.screen = "menu"
-    update_mascot(
-        "Ana menüdeyiz. İstediğin sınıf düzeyini seçerek inceleyebilirsin."
-    )
+    update_mascot("Ana menüdeyiz. İstediğin sınıfı seçebilirsin.")
 
 
 def go_map(grade_key):
     st.session_state.screen = "map"
     st.session_state.grade_key = grade_key
-    update_mascot("Seviyelerden birini seçerek çalışmaya başlayabilirsin.")
+    update_mascot("Level haritasındayız. Seçimini yap ve başla!")
 
 
 def start_level(level_data):
@@ -373,7 +383,7 @@ def start_level(level_data):
     st.session_state.selected_option = None
     st.session_state.is_correct = None
     update_mascot(
-        f"'{level_data['title']}' konusundaki gerçek fotoğrafları inceleyelim."
+        f"'{level_data['title']}' dersindeyiz! İncelemeyi tamamlayınca teste başla."
     )
 
 
@@ -384,7 +394,7 @@ st.markdown(
 
 col_top1, col_top2 = st.columns([1, 1])
 with col_top1:
-    st.markdown(f"### 🔥 Günlük Çalışma Serisi: {st.session_state.streak}")
+    st.markdown(f"### 🔥 Çalışma Serisi: {st.session_state.streak} Gün")
 with col_top2:
     total_stars = sum(st.session_state.stars_earned.values())
     st.markdown(f"### ⭐ Toplam Başarı Yıldızı: {total_stars}")
@@ -407,7 +417,7 @@ if st.session_state.screen == "menu":
             )
             st.write("")
             if st.button(
-                "İNCELE 🚀",
+                "GİRİŞ 🚀",
                 key=f"btn_{g_key}",
                 use_container_width=True,
                 type="primary",
@@ -429,7 +439,7 @@ elif st.session_state.screen == "map":
         with cols[idx]:
             lvl_id = lvl["id"]
             stars = st.session_state.stars_earned.get(lvl_id, 0)
-            star_str = "⭐" * stars if stars > 0 else "AKTİF 🚀"
+            star_str = "⭐" * stars if stars > 0 else "HAZIR 🚀"
 
             st.markdown(
                 f"""
@@ -467,26 +477,38 @@ elif st.session_state.screen == "game":
         for i, w in enumerate(lvl_data["words"]):
             col_target = cols[i % 4]
             with col_target:
-                st.markdown(
-                    f"""
-                    <div style="background: #1E293B; border-radius: 20px; padding: 15px; text-align: center; border: 3px solid #38BDF8; margin-bottom: 15px;">
-                        <img src="{w['img']}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 12px;">
-                        <h3 style="color: #38BDF8; margin-top: 10px;">{w['en']}</h3>
-                        <p style="color: #94A3B8;">{w['tr']}</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                if lvl_data.get("type") == "colors":
+                    st.markdown(
+                        f"""
+                        <div style="background: #1E293B; border-radius: 20px; padding: 15px; text-align: center; border: 3px solid #38BDF8; margin-bottom: 15px;">
+                            <div class="color-block" style="background-color: {w['hex']};"></div>
+                            <h3 style="color: #38BDF8; margin-top: 10px;">{w['en']}</h3>
+                            <p style="color: #94A3B8;">{w['tr']}</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        f"""
+                        <div style="background: #1E293B; border-radius: 20px; padding: 15px; text-align: center; border: 3px solid #38BDF8; margin-bottom: 15px;">
+                            <img src="{w['img']}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 12px;">
+                            <h3 style="color: #38BDF8; margin-top: 10px;">{w['en']}</h3>
+                            <p style="color: #94A3B8;">{w['tr']}</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
         st.write("")
         if st.button(
-            "🎮 Gerçek Fotoğraflarla Teste Başla!",
+            "🎮 İnceledim, Teste Başla!",
             type="primary",
             use_container_width=True,
         ):
             st.session_state.phase = "quiz"
             update_mascot(
-                "Test başladı! Gerçek fotoğrafın İngilizce karşılığını bul."
+                "Test başladı! Doğru cevabı seçtiğinde yeşil LED yanacak."
             )
             st.rerun()
 
@@ -499,11 +521,20 @@ elif st.session_state.screen == "game":
         else:
             current_word = words[st.session_state.quiz_index]
 
-            if lvl_data.get("type") == "zoo":
+            if lvl_data.get("type") == "colors":
+                st.markdown(
+                    f"""
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div class="color-block" style="background-color: {current_word['hex']}; width: 300px; height: 180px; margin: 0 auto;"></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            elif lvl_data.get("type") == "zoo":
                 st.markdown(
                     f"""
                     <div class="zoo-viewport">
-                        <p style="font-size: 18px; font-weight: bold; color: #FEF08A;">🦁 DOĞAL YAŞAM GÖZLEMİ 🌿</p>
+                        <p style="font-size: 18px; font-weight: bold; color: #FEF08A;">🦁 SAFARİ GÖZLEMİ 🌿</p>
                         <img src="{current_word['img']}" style="width: 320px; height: 200px; object-fit: cover; border-radius: 20px; border: 4px solid white;">
                         <p style="font-size: 15px; margin-top: 10px; color: #FEF3C7;"><i>Bilgi: {current_word.get('sound', 'Canlı')}</i></p>
                     </div>
@@ -514,13 +545,13 @@ elif st.session_state.screen == "game":
                 st.markdown(
                     f"""
                     <div style="text-align: center; margin-bottom: 20px;">
-                        <img src="{current_word['img']}" style="width: 320px; height: 210px; object-fit: cover; border-radius: 20px; border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.4);">
+                        <img src="{current_word['img']}" style="width: 320px; height: 210px; object-fit: cover; border-radius: 20px; border: 4px solid white;">
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
-            # Şıkları Hazırlama
+            # Şık Hazırlığı
             if "current_options" not in st.session_state or st.session_state.get(
                 "last_q_idx"
             ) != st.session_state.quiz_index:
@@ -586,9 +617,7 @@ elif st.session_state.screen == "game":
                             if opt == current_word["en"]:
                                 st.session_state.is_correct = True
                                 st.session_state.score += 1
-                                update_mascot(
-                                    "Mükemmel analiz! Doğru yanıt. 🎉"
-                                )
+                                update_mascot("Harika! Doğru yanıt. 🎉")
                             else:
                                 st.session_state.is_correct = False
                                 update_mascot(
