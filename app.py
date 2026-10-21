@@ -71,6 +71,19 @@ div[data-baseweb="tab-highlight"]{background:#FF7A59!important}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @keyframes bob{50%{transform:translateY(-6px)}}
 .bob{animation:bob 1.6s ease-in-out infinite;display:inline-block}
+.hero{display:flex;gap:16px;align-items:center;background:linear-gradient(135deg,#FFE7A8,#FFC9B8);border-radius:26px;padding:12px 16px;margin:6px 0 10px;box-shadow:0 8px 20px rgba(255,122,89,.18)}
+.hl{font-size:13px;font-weight:700;opacity:.7}.hs{font-size:20px;font-weight:800;margin-bottom:6px}
+.dots{display:flex;gap:5px}.dot{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.6);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;color:#8A7A66}.dot.on{background:#6BCB77;color:#fff}
+.wod{display:flex;gap:14px;align-items:center;background:#fff;border-radius:22px;padding:12px 14px;margin:10px 0 4px;box-shadow:0 3px 0 #E4D7BD,0 6px 14px rgba(139,94,60,.1)}
+.wod small{font-weight:700;color:#FF7A59}.wod .t{font-size:22px;font-weight:800}
+.wg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wc{background:#fff;border-radius:16px;padding:8px 4px;text-align:center;font-size:13px;box-shadow:0 2px 6px rgba(139,94,60,.12);position:relative}
+.wc b{display:block}.wc img:last-child{position:absolute;top:4px;right:4px}
+.bg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+.bgi{background:#fff;border-radius:18px;padding:10px 4px;text-align:center;font-weight:700;font-size:13px;box-shadow:0 2px 8px rgba(139,94,60,.12)}
+.bgi small{display:block;color:#8A7A66;font-weight:600}.bgi.off img{filter:grayscale(1) opacity(.3)}
+.scene svg g.cr{animation:bob 3s ease-in-out infinite;transform-box:fill-box}
+.card{transition:transform .15s}.card:hover{transform:translateY(-2px)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 """
@@ -93,6 +106,14 @@ def tw(e, px=64):
 def pic(e, px=96):
     if e.startswith(("http", "data:")):
         return f'<img src="{e}" width="{px}" height="{px}" style="object-fit:cover;border-radius:18px">'
+    if e.startswith("shape:"):
+        _, name, h = e.split(":")
+        sh = {"circle": '<circle cx="50" cy="50" r="40"/>', "square": '<rect x="12" y="12" width="76" height="76" rx="10"/>',
+              "rectangle": '<rect x="6" y="26" width="88" height="48" rx="8"/>',
+              "triangle": '<path d="M50 10 L92 88 H8Z" stroke-linejoin="round" stroke="%s" stroke-width="8"/>' % h,
+              "star": '<path d="M50 6 L62 38 L96 40 L69 61 L79 94 L50 75 L21 94 L31 61 L4 40 L38 38Z" stroke-linejoin="round" stroke="%s" stroke-width="6"/>' % h,
+              "heart": '<path d="M50 88 C10 56 6 30 28 20 C42 14 50 26 50 32 C50 26 58 14 72 20 C94 30 90 56 50 88Z"/>'}[name]
+        return f'<svg width="{px}" height="{px}" viewBox="0 0 100 100" fill="{h}">{sh}</svg>'
     if e.startswith("col:"):
         return (f'<svg width="{px}" height="{px}" viewBox="0 0 100 100"><path d="M50 8c18-2 40 10 42 32 2 20-10 30-8 44-2 10-24 12-40 8'
                 f'C26 88 8 78 8 58 6 36 28 10 50 8z" fill="{e[4:]}"/><ellipse cx="34" cy="30" rx="13" ry="7" fill="#fff" opacity=".45" '
@@ -143,7 +164,7 @@ def creature(b, x, y):
 def nest_svg(boxes):
     slots = [(125, 128), (155, 124), (185, 124), (215, 128), (110, 150), (140, 148), (170, 148), (200, 148), (230, 150)]
     boxes = sorted(boxes, reverse=True)[:len(slots)]
-    items = "".join(creature(b, *slots[i]) for i, b in enumerate(boxes))
+    items = "".join(f'<g class="cr" style="animation-delay:{i * .3}s">{creature(b, *slots[i])}</g>' for i, b in enumerate(boxes))
     empty = "" if boxes else f'<text x="180" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="{TWIG}">Yuvan boş, ilk kelimeni topla</text>'
     return (f'<div class="scene"><svg viewBox="0 0 360 230" width="100%"><rect width="360" height="230" fill="#BFE8FF"/>'
             f'<circle cx="300" cy="44" r="26" fill="{SUN}"/><ellipse cx="70" cy="46" rx="34" ry="12" fill="#fff"/><ellipse cx="92" cy="40" rx="22" ry="10" fill="#fff"/>'
@@ -227,16 +248,46 @@ GRADES = {
           [("Hava güneşli.", "It is sunny"), ("Bugün yağmurlu.", "It is rainy today")]),
     ]),
 }
+GRADES["k"]["units"] += [
+    U("k5", "Shapes", "Şekiller", "🔷", "It is {A}.",
+      [("Circle", "Daire", "shape:circle:#FF7A59"), ("Square", "Kare", "shape:square:#4DB6E5"), ("Triangle", "Üçgen", "shape:triangle:#6BCB77"),
+       ("Star", "Yıldız", "shape:star:#FFC93C"), ("Heart", "Kalp", "shape:heart:#FF5C8A"), ("Rectangle", "Dikdörtgen", "shape:rectangle:#CE82FF")],
+      [("Bu bir daire.", "This is a circle"), ("Yıldız sarıdır.", "The star is yellow")]),
+    U("k6", "Transport", "Taşıtlar", "🚌", "I see {A}.",
+      [("Bus", "Otobüs", "🚌"), ("Train", "Tren", "🚆"), ("Bike", "Bisiklet", "🚲"),
+       ("Plane", "Uçak", "✈️"), ("Boat", "Tekne", "⛵"), ("Truck", "Kamyon", "🚚")],
+      [("Otobüs büyük.", "The bus is big"), ("Uçak uçar.", "The plane can fly")]),
+]
+GRADES["1"]["units"] += [
+    U("a5", "My House", "Evim", "🏠", "This is my {w}.",
+      [("House", "Ev", "🏠"), ("Door", "Kapı", "🚪"), ("Bed", "Yatak", "🛏️"),
+       ("Chair", "Sandalye", "🪑"), ("Window", "Pencere", "🪟"), ("Lamp", "Lamba", "💡")],
+      [("Bu benim evim.", "This is my house"), ("Kapıyı aç.", "Open the door")]),
+    U("a6", "Clothes", "Kıyafetler", "👕", "",
+      [("Hat", "Şapka", "🧢", "I wear a hat."), ("Shirt", "Tişört", "👕", "I wear a shirt."), ("Pants", "Pantolon", "👖", "I wear pants."),
+       ("Shoes", "Ayakkabı", "👟", "I wear shoes."), ("Socks", "Çorap", "🧦", "I wear socks."), ("Coat", "Mont", "🧥", "I wear a coat.")],
+      [("Şapkam kırmızı.", "My hat is red"), ("Ayakkabılarını giy.", "Wear your shoes")]),
+]
+GRADES["2"]["units"] += [
+    U("b5", "Jobs", "Meslekler", "🧑‍⚕️", "I am {A}.",
+      [("Doctor", "Doktor", "🧑‍⚕️"), ("Teacher", "Öğretmen", "🧑‍🏫"), ("Farmer", "Çiftçi", "🧑‍🌾"),
+       ("Cook", "Aşçı", "🧑‍🍳"), ("Firefighter", "İtfaiyeci", "🧑‍🚒"), ("Pilot", "Pilot", "🧑‍✈️")],
+      [("Annem öğretmen.", "My mother is a teacher"), ("O bir doktor.", "He is a doctor")]),
+    U("b6", "Nature", "Doğa", "🌳", "I see {A}.",
+      [("Tree", "Ağaç", "🌳"), ("Flower", "Çiçek", "🌸"), ("Sea", "Deniz", "🌊"),
+       ("Mountain", "Dağ", "⛰️"), ("Moon", "Ay", "🌙"), ("Star", "Yıldız", "⭐")],
+      [("Ağaç yeşil.", "The tree is green"), ("Ay parlak.", "The moon is bright")]),
+]
 ALL_UNITS = [u for g in GRADES.values() for u in g["units"]]
 BASE_WORDS = {w["id"]: w for u in ALL_UNITS for w in u["words"]}
-RANKS = [("A1", "Dal", 0), ("A2", "Yuva", 6), ("B1", "Ağaç", 16), ("B2", "Orman", 32), ("C1", "Gökyüzü", 60)]
+RANKS = [("A1", "Dal", 0), ("A2", "Yuva", 8), ("B1", "Ağaç", 24), ("B2", "Orman", 48), ("C1", "Gökyüzü", 90)]
 
 # ------------------------------------------------------------------
 # STATE
 # ------------------------------------------------------------------
 DEFAULTS = dict(screen="nest", unit=None, phase="learn", nest={}, custom=[], hist={}, streak=1, last_day=None,
                 qs=[], qi=0, score=0, picked=None, ok=False, built=[], pool=[], checked=False, sfx=False,
-                wids=[], bad=[], mode="review", res={}, story="", hunt=None)
+                wids=[], bad=[], mode="review", res={}, story="", hunt=None, goal=10, stories=0, perfect=0)
 for k, v in DEFAULTS.items():
     st.session_state.setdefault(k, v)
 S = st.session_state
@@ -397,22 +448,34 @@ def identify(img_bytes):
 # OTURUM (Yuva bakımı + ünite)
 # ------------------------------------------------------------------
 def build_session(wids, sents, mode):
-    ws, pool = W(), list(W().values())
+    ws = W()
+    pool = list(ws.values())
+    random.shuffle(wids)
     qs = []
-    for wid in wids:
+    for n, wid in enumerate(wids):
         w, seen, wrong = ws[wid], set(), []
         for x in random.sample(pool, min(len(pool), 14)):
             if x["en"] != w["en"] and x["en"] not in seen and len(wrong) < 3:
                 seen.add(x["en"])
                 wrong.append(x)
-        for k in ("see", "hear"):
+        for k in ["see"] + (["hear"] if mode == "review" or n < 3 else []):
             o = [w] + wrong
             random.shuffle(o)
             qs.append(dict(k=k, w=w, opts=o))
+    sp = [i for i in wids if " " not in ws[i]["en"] and 2 < len(ws[i]["en"]) <= 8]
+    for i in random.sample(sp, min(2 if mode == "unit" else 1, len(sp))):
+        w = ws[i]
+        qs.append(dict(k="spell", s=dict(tr=w["tr"], words=list(w["en"].upper()), wid=i, e=w["e"], en=w["en"])))
     random.shuffle(qs)
     qs += [dict(k="sent", s=s) for s in sents]
     go(screen="play", phase="quiz", qs=qs, qi=0, score=0, picked=None, built=[], pool=[], checked=False,
        sfx=False, wids=wids, bad=[], mode=mode)
+
+
+def new_story():
+    ws = [W()[i] for i in S.nest if i in W()]
+    S.story = make_story(random.sample(ws, min(5, len(ws))))
+    S.stories += 1
 
 
 def start_review():
@@ -455,9 +518,9 @@ def pick_word(i):
     S.built.append(S.pool.pop(i))
 
 
-def check_sentence(target):
+def check_sentence(target, wid=None):
     S.checked = True
-    award([w.lower() for w in S.built] == [w.lower() for w in target])
+    award([w.lower() for w in S.built] == [w.lower() for w in target], wid)
 
 
 def reset_pool(words):
@@ -477,6 +540,7 @@ def next_q():
             v["box"] = max(0, old - 1) if wid in S.bad else min(4, old + 1)
             v["due"] = (today + timedelta(INTERVALS[v["box"]])).isoformat()
             moves.append((wid, old, v["box"]))
+        S.perfect += int(S.score == len(S.qs))
         S.res = dict(moves=moves)
         S.phase = "result"
 
@@ -501,14 +565,26 @@ def head():
 # ------------------------------------------------------------------
 if S.screen == "nest":
     head()
+    td = S.hist.get(today.isoformat(), {}).get("n", 0)
+    pct = min(100, int(td / S.goal * 100))
+    circ = 2 * 3.1416 * 34
+    ring = (f'<svg width="84" height="84" viewBox="0 0 84 84"><circle cx="42" cy="42" r="34" stroke="#fff" stroke-opacity=".6" stroke-width="10" fill="none"/>'
+            f'<circle cx="42" cy="42" r="34" stroke="#FF7A59" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="{circ * pct / 100:.1f} {circ:.1f}" transform="rotate(-90 42 42)"/>'
+            f'<text x="42" y="48" text-anchor="middle" font-size="18" font-weight="800" fill="#2F3A4A" font-family="Baloo 2,Arial">{td}/{S.goal}</text></svg>')
+    L = ["P", "S", "Ç", "P", "C", "C", "P"]
+    dots = "".join(f'<span class="dot {"on" if S.hist.get((today - timedelta(d)).isoformat(), {}).get("n", 0) else ""}">{L[(today - timedelta(d)).weekday()]}</span>'
+                   for d in range(6, -1, -1))
+    msg = "Hedefe ulaştın!" if td >= S.goal else f"{S.goal - td} cevap kaldı"
+    st.markdown(f'<div class="hero">{ring}<div><div class="hl">Bugünkü hedef</div><div class="hs">{msg}</div><div class="dots">{dots}</div></div></div>',
+                unsafe_allow_html=True)
     st.markdown(nest_svg([v["box"] for v in S.nest.values()]), unsafe_allow_html=True)
     cnt = [sum(1 for v in S.nest.values() if v["box"] == b) for b in range(5)]
     st.markdown('<div class="stg">' + "".join(f'<div>{tw(e, 30)}<b>{cnt[i]}</b>{n}</div>' for i, (n, e) in enumerate(STAGES)) + "</div>",
                 unsafe_allow_html=True)
     r = rank()
     nxt = RANKS[r + 1] if r + 1 < len(RANKS) else None
-    pct = 100 if not nxt else int((len(S.nest) - RANKS[r][2]) / (nxt[2] - RANKS[r][2]) * 100)
-    st.markdown(f'<div class="row"><b>{RANKS[r][0]} · {RANKS[r][1]}</b><div class="bar"><div style="width:{pct}%"></div></div>'
+    pr = 100 if not nxt else int((len(S.nest) - RANKS[r][2]) / (nxt[2] - RANKS[r][2]) * 100)
+    st.markdown(f'<div class="row"><b>{RANKS[r][0]} · {RANKS[r][1]}</b><div class="bar"><div style="width:{pr}%"></div></div>'
                 f'<small>{f"{nxt[2] - len(S.nest)} kelime" if nxt else "Zirve"}</small></div>', unsafe_allow_html=True)
     n = len(due_ids())
     if not S.nest:
@@ -516,19 +592,34 @@ if S.screen == "nest":
     else:
         st.button(f"Yuva bakımı · {n} kelime bekliyor" if n else "Bugün bakım yok, yarın gel", type="primary",
                   use_container_width=True, disabled=n == 0, on_click=start_review)
+    wd = random.Random(today.toordinal()).choice(list(W().values()))
+    st.markdown(f'<div class="wod">{pic(wd["e"], 72)}<div><small>Günün kelimesi</small><div class="t">{wd["en"]}</div>'
+                f'<div>{wd["tr"]} · {wd["s"]}</div></div></div>', unsafe_allow_html=True)
+    speak_html(wd["en"])
+    if S.nest:
+        with st.expander(f"Yuvamdaki kelimeler ({len(S.nest)})"):
+            st.markdown('<div class="wg">' + "".join(
+                f'<div class="wc">{pic(W()[i]["e"], 44)}<b>{W()[i]["en"]}</b>{tw(STAGES[v["box"]][1], 20)}</div>'
+                for i, v in S.nest.items() if i in W()) + "</div>", unsafe_allow_html=True)
 
 elif S.screen == "explore":
     head()
     tabs = st.tabs([g["title"] for g in GRADES.values()])
     for tab, g in zip(tabs, GRADES.values()):
         with tab:
+            tot = sum(len(u["words"]) for u in g["units"])
+            got = sum(1 for u in g["units"] for w in u["words"] if w["id"] in S.nest)
+            st.markdown(f'<div class="row"><b>{got}/{tot} kelime</b><div class="bar"><div style="width:{got / tot * 100}%"></div></div></div>',
+                        unsafe_allow_html=True)
             cols = st.columns(2)
             for i, u in enumerate(g["units"]):
                 have = sum(1 for w in u["words"] if w["id"] in S.nest)
                 with cols[i % 2]:
-                    st.markdown(f'<div class="card">{tw(u["ic"], 54)}<div class="t">{u["title"]}</div><small>{u["tr"]} · {have}/{len(u["words"])} yuvada</small></div>',
+                    st.markdown(f'<div class="card">{tw(u["ic"], 54)}<div class="t">{u["title"]}</div><small>{u["tr"]}</small>'
+                                f'<div class="bar" style="margin:8px 0 0"><div style="width:{have / len(u["words"]) * 100}%"></div></div></div>',
                                 unsafe_allow_html=True)
-                    st.button("Topla", key=f"u_{u['id']}", type="primary", use_container_width=True, on_click=start_unit, args=(u,))
+                    st.button("Topla" if have < len(u["words"]) else "Tekrar çalış", key=f"u_{u['id']}", type="primary",
+                              use_container_width=True, on_click=start_unit, args=(u,))
 
 elif S.screen == "adv":
     head()
@@ -539,7 +630,7 @@ elif S.screen == "adv":
             st.info("Hikâye için yuvaya en az 3 kelime topla.")
         else:
             st.button("Yuvamdan hikâye yaz", type="primary", use_container_width=True,
-                      on_click=lambda: S.__setitem__("story", make_story(random.sample(nest_words, min(5, len(nest_words))))))
+                      on_click=new_story)
             if S.story:
                 st.markdown(f'<div class="card" style="text-align:left;font-size:18px">{S.story}</div>', unsafe_allow_html=True)
                 speak_html(S.story, label="Hikâyeyi dinle")
@@ -580,50 +671,72 @@ elif S.screen == "adv":
 
 elif S.screen == "panel":
     head()
-    days = [today - timedelta(d) for d in range(6, -1, -1)]
-    H = [S.hist.get(d.isoformat(), {}) for d in days]
-    vals = [h.get("n", 0) for h in H]
-    mx = max(vals + [1])
-    names = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
-    bars = "".join(f'<div class="cc {"t" if d == today else ""}"><em>{v or ""}</em><i style="height:{max(4, int(v / mx * 110))}px"></i>'
-                   f'<span>{names[d.weekday()]}</span></div>' for d, v in zip(days, vals))
-    ok, n = sum(h.get("ok", 0) for h in H), sum(vals)
-    st.markdown(f"""<div class="grid"><div class="tile"><b>{vals[-1]}</b><span>Bugün cevap</span></div><div class="tile"><b>{n}</b><span>Haftalık cevap</span></div>
-        <div class="tile"><b>%{int(ok / n * 100) if n else 0}</b><span>Haftalık doğruluk</span></div>
-        <div class="tile"><b>{mastered()}/{len(S.nest)}</b><span>Usta kuş / yuvadaki</span></div></div>
-        <h3>Son 7 gün</h3><div class="chart">{bars}</div><h3>Ünite gelişimi</h3>""", unsafe_allow_html=True)
-    rows = ""
-    for u in ALL_UNITS:
-        ids = [w["id"] for w in u["words"]]
-        have = sum(1 for i in ids if i in S.nest)
-        m = sum(1 for i in ids if S.nest.get(i, {}).get("box", 0) >= 3)
-        rows += f'<div class="row">{tw(u["ic"], 26)}<span>{u["title"]}</span><div class="bar"><div style="width:{m / len(ids) * 100}%"></div></div><small>{have}/{len(ids)}</small></div>'
-    st.markdown(rows, unsafe_allow_html=True)
-    hard = sorted([(v["ok"] / v["n"], i) for i, v in S.nest.items() if v["n"] >= 2])[:5]
-    if hard:
-        st.markdown("<h3>Zorlanılan kelimeler</h3>" + "".join(
-            f'<div class="row">{pic(W()[i]["e"], 30)}<span>{W()[i]["en"]} · {W()[i]["tr"]}</span><small>%{int(p * 100)}</small></div>' for p, i in hard),
+    t1, t2, t3 = st.tabs(["Gelişim", "Rozetler", "Ayarlar"])
+    with t1:
+        days = [today - timedelta(d) for d in range(6, -1, -1)]
+        H = [S.hist.get(d.isoformat(), {}) for d in days]
+        vals = [h.get("n", 0) for h in H]
+        mx = max(vals + [1])
+        names = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
+        bars = "".join(f'<div class="cc {"t" if d == today else ""}"><em>{v or ""}</em><i style="height:{max(4, int(v / mx * 110))}px"></i>'
+                       f'<span>{names[d.weekday()]}</span></div>' for d, v in zip(days, vals))
+        ok, n = sum(h.get("ok", 0) for h in H), sum(vals)
+        st.markdown(f"""<div class="grid"><div class="tile"><b>{vals[-1]}</b><span>Bugün cevap</span></div><div class="tile"><b>{n}</b><span>Haftalık cevap</span></div>
+            <div class="tile"><b>%{int(ok / n * 100) if n else 0}</b><span>Haftalık doğruluk</span></div>
+            <div class="tile"><b>{mastered()}/{len(S.nest)}</b><span>Usta kuş / yuvadaki</span></div></div>
+            <h3>Son 7 gün</h3><div class="chart">{bars}</div><h3>Ünite gelişimi</h3>""", unsafe_allow_html=True)
+        rows = ""
+        for u in ALL_UNITS:
+            ids = [w["id"] for w in u["words"]]
+            have = sum(1 for i in ids if i in S.nest)
+            m = sum(1 for i in ids if S.nest.get(i, {}).get("box", 0) >= 3)
+            rows += f'<div class="row">{tw(u["ic"], 26)}<span>{u["title"]}</span><div class="bar"><div style="width:{m / len(ids) * 100}%"></div></div><small>{have}/{len(ids)}</small></div>'
+        st.markdown(rows, unsafe_allow_html=True)
+        hard = sorted([(v["ok"] / v["n"], i) for i, v in S.nest.items() if v["n"] >= 2 and i in W()])[:5]
+        if hard:
+            st.markdown("<h3>Zorlanılan kelimeler</h3>" + "".join(
+                f'<div class="row">{pic(W()[i]["e"], 30)}<span>{W()[i]["en"]} · {W()[i]["tr"]}</span><small>%{int(p * 100)}</small></div>' for p, i in hard),
+                unsafe_allow_html=True)
+    with t2:
+        BADGES = [
+            ("İlk yumurta", "🥚", "Yuvaya ilk kelimeyi ekle", len(S.nest) >= 1),
+            ("Civciv sürüsü", "🐥", "5 kelimeyi civciv yap", sum(1 for v in S.nest.values() if v["box"] >= 2) >= 5),
+            ("Usta kuş", "🦜", "İlk usta kuşunu yetiştir", mastered() >= 1),
+            ("Kelime ormanı", "🌳", "30 kelime topla", len(S.nest) >= 30),
+            ("Ateşli seri", "🔥", "3 gün üst üste gel", S.streak >= 3),
+            ("Hedef avcısı", "🎯", "Günlük hedefe ulaş", S.hist.get(today.isoformat(), {}).get("n", 0) >= S.goal),
+            ("Kusursuz", "💯", "Hatasız tur yap", S.perfect >= 1),
+            ("Hikâyeci", "📖", "İlk hikâyeni oku", S.stories >= 1),
+            ("Fotoğrafçı", "📷", "Kelime avıyla kelime bul", len(S.custom) >= 1),
+        ]
+        got = sum(b[3] for b in BADGES)
+        st.markdown(f"<h3>{got}/{len(BADGES)} rozet</h3><div class='bg'>" + "".join(
+            f'<div class="bgi {"" if b[3] else "off"}">{tw(b[1], 56)}<div>{b[0]}</div><small>{b[2]}</small></div>' for b in BADGES) + "</div>",
             unsafe_allow_html=True)
-    buf = io.StringIO()
-    cw = csv.writer(buf)
-    cw.writerow(["kelime", "turkce", "unite", "kutu", "dogru", "toplam", "sonraki_bakim"])
-    for i, v in S.nest.items():
-        w = W()[i]
-        cw.writerow([w["en"], w["tr"], w.get("u", ""), v["box"], v["ok"], v["n"], v["due"]])
-    c1, c2 = st.columns(2)
-    c1.download_button("Rapor (CSV)", buf.getvalue(), "lingonest_rapor.csv", use_container_width=True, icon=":material/download:")
-    keys = ("nest", "custom", "hist", "streak", "last_day")
-    c2.download_button("İlerleme kaydı", json.dumps({k: S[k] for k in keys}), "lingonest_ilerleme.json", use_container_width=True,
-                       icon=":material/save:")
-    up = st.file_uploader("Kayıtlı ilerlemeyi yükle", type="json")
-    if up is not None and S.get("loaded") != up.name:
-        try:
-            S.update(json.loads(up.read()))
-            S.loaded = up.name
-            st.rerun()
-        except Exception:
-            st.error("Dosya okunamadı.")
-    st.caption("Görseller: Twemoji, CC-BY 4.0")
+    with t3:
+        opts = [5, 10, 15, 20, 30]
+        S.goal = st.select_slider("Günlük hedef (cevap sayısı)", options=opts, value=S.goal if S.goal in opts else 10)
+        buf = io.StringIO()
+        cw = csv.writer(buf)
+        cw.writerow(["kelime", "turkce", "unite", "kutu", "dogru", "toplam", "sonraki_bakim"])
+        for i, v in S.nest.items():
+            if i in W():
+                w = W()[i]
+                cw.writerow([w["en"], w["tr"], w.get("u", ""), v["box"], v["ok"], v["n"], v["due"]])
+        c1, c2 = st.columns(2)
+        c1.download_button("Rapor (CSV)", buf.getvalue(), "lingonest_rapor.csv", use_container_width=True, icon=":material/download:")
+        keys = ("nest", "custom", "hist", "streak", "last_day", "goal", "stories", "perfect")
+        c2.download_button("İlerleme kaydı", json.dumps({k: S[k] for k in keys}), "lingonest_ilerleme.json", use_container_width=True,
+                           icon=":material/save:")
+        up = st.file_uploader("Kayıtlı ilerlemeyi yükle", type="json")
+        if up is not None and S.get("loaded") != up.name:
+            try:
+                S.update(json.loads(up.read()))
+                S.loaded = up.name
+                st.rerun()
+            except Exception:
+                st.error("Dosya okunamadı.")
+        st.caption("Görseller: Twemoji, CC-BY 4.0")
 
 elif S.screen == "play":
     st.button("Çık", icon=":material/close:", on_click=go, kwargs={"screen": "nest"})
@@ -637,7 +750,7 @@ elif S.screen == "play":
     elif S.phase == "quiz":
         q = S.qs[S.qi]
         st.markdown(f'<div class="bar"><div style="width:{S.qi / len(S.qs) * 100}%"></div></div>', unsafe_allow_html=True)
-        if q["k"] != "sent":
+        if q["k"] in ("see", "hear"):
             w, seen = q["w"], q["k"] == "see"
             if seen:
                 st.markdown(f"<p class='ask'>Bu İngilizce ne?</p><div class='art'>{pic(w['e'], 128)}</div>", unsafe_allow_html=True)
@@ -665,23 +778,30 @@ elif S.screen == "play":
                 st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
         else:
             s = q["s"]
+            spell = q["k"] == "spell"
+            sep = "" if spell else " "
             if not S.pool and not S.built and not S.checked:
                 reset_pool(s["words"])
-            st.markdown(f"<p class='ask'>İngilizcesini kur</p><div class='art'><h2 style='margin:0'>{s['tr']}</h2></div>", unsafe_allow_html=True)
+            if spell:
+                st.markdown(f"<p class='ask'>Harfleri sıraya diz</p><div class='art'>{pic(s['e'], 110)}<h3 style='margin:4px 0 0'>{s['tr']}</h3></div>",
+                            unsafe_allow_html=True)
+            else:
+                st.markdown(f"<p class='ask'>İngilizcesini kur</p><div class='art'><h2 style='margin:0'>{s['tr']}</h2></div>", unsafe_allow_html=True)
             st.markdown(f"<div class='built'>{''.join(f'<span class=w>{x}</span>' for x in S.built)}</div>", unsafe_allow_html=True)
             if not S.checked:
-                cols = st.columns(min(max(len(S.pool), 1), 3))
+                cols = st.columns(min(max(len(S.pool), 1), 4 if spell else 3))
                 for i, x in enumerate(S.pool):
                     cols[i % len(cols)].button(x, key=f"w{S.qi}_{i}_{x}", use_container_width=True, on_click=pick_word, args=(i,))
                 a, b = st.columns(2)
                 a.button("Sıfırla", icon=":material/refresh:", use_container_width=True, on_click=reset_pool, args=(s["words"],))
-                b.button("Kontrol et", type="primary", use_container_width=True, disabled=not S.built, on_click=check_sentence, args=(s["words"],))
+                b.button("Kontrol et", type="primary", use_container_width=True, disabled=not S.built,
+                         on_click=check_sentence, args=(s["words"], s.get("wid")))
             else:
                 sfx(S.ok)
-                target = " ".join(s["words"])
+                target = sep.join(s["words"])
                 st.markdown(f"<div class='sheet {'ok' if S.ok else 'no'}'>{chick(52, not S.ok)}<div><b>{'Mükemmel!' if S.ok else 'Doğrusu:'}</b>"
                             f"<br><span>{target}</span></div></div>", unsafe_allow_html=True)
-                speak_html(target)
+                speak_html(s["en"] if spell else target)
                 st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
 
     elif S.phase == "result":
