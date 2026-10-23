@@ -1793,4 +1793,4 @@ elif S.screen == "panel":
             st.markdown(f'<div class="row"><b>{esc(S.user)}</b><small>{"Öğretmen" if S.role == "teacher" else "Öğrenci"}'
                         f'{" · Sınıf kodu: " + esc(S.class_code) if S.class_code else ""}</small></div>', unsafe_allow_html=True)
             st.button("Çıkış yap", icon=":material/logout:", use_container_width=True, on_click=logout)
-                        with st.expander("Hesabı sil"):
+            with st.expander("Hesabı sil"):
