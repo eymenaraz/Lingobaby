@@ -12,7 +12,7 @@ import string
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from html import escape as esc
 
 import streamlit as st
@@ -335,10 +335,46 @@ RANKS = [("A1", "Dal", 0), ("A2", "Yuva", 8), ("B1", "Ağaç", 24), ("B2", "Orma
 GRADE_NAMES = {"k": "Anaokulu", "a": "1. Sınıf", "b": "2. Sınıf"}
 AI_LIMIT = 25  # kullanıcı başına günlük yapay zekâ çağrısı
 
+# Konuşma sahneleri: (Civi'nin cümlesi, Türkçesi, doğru cevap, Türkçesi, [iki yanlış cevap])
+DIALOGS = [
+    dict(id="d1", title="Okulda", ic="🏫", turns=[
+        ("Hello! What is your name?", "Merhaba! Adın ne?", "My name is Sam.", "Benim adım Sam.", ["It is a cat.", "I like red."]),
+        ("How are you?", "Nasılsın?", "I am fine, thank you.", "İyiyim, teşekkürler.", ["Yes, I do.", "It is blue."]),
+        ("Goodbye!", "Hoşça kal!", "Goodbye, see you!", "Hoşça kal, görüşürüz!", ["I have a ball.", "Two apples."])]),
+    dict(id="d2", title="Kafede", ic="☕", turns=[
+        ("What do you want?", "Ne istersin?", "I want milk, please.", "Süt istiyorum, lütfen.", ["I am a pilot.", "It is sunny."]),
+        ("Here you are!", "Buyur!", "Thank you!", "Teşekkürler!", ["I am sleepy.", "Red, please."]),
+        ("Do you like bread?", "Ekmek sever misin?", "Yes, I like bread.", "Evet, ekmek severim.", ["It is cloudy.", "My name is Ali."])]),
+    dict(id="d3", title="Ailem", ic="👨‍👩‍👧", turns=[
+        ("Who is she?", "O kim?", "She is my mother.", "O benim annem.", ["It is a book.", "I can jump."]),
+        ("Is he your brother?", "O senin erkek kardeşin mi?", "Yes, he is my brother.", "Evet, o benim kardeşim.", ["I like apples.", "It is hot."]),
+        ("Do you love your family?", "Aileni sever misin?", "Yes, I love my family.", "Evet, ailemi severim.", ["It is rainy.", "I wear a hat."])]),
+    dict(id="d4", title="Hava durumu", ic="🌦️", turns=[
+        ("How is the weather?", "Hava nasıl?", "It is sunny.", "Hava güneşli.", ["I am a chef.", "My name is Lara."]),
+        ("Is it cold?", "Hava soğuk mu?", "No, it is hot.", "Hayır, sıcak.", ["I have a robot.", "She is a teacher."]),
+        ("Let's go outside!", "Haydi dışarı çıkalım!", "Yes, let's go!", "Evet, gidelim!", ["It is a pencil.", "Goodbye, cat."])]),
+    dict(id="d5", title="Hayvanat bahçesi", ic="🦁", turns=[
+        ("What do you see?", "Ne görüyorsun?", "I see a lion.", "Bir aslan görüyorum.", ["I am hot.", "I eat bread."]),
+        ("Is the elephant big?", "Fil büyük mü?", "Yes, it is big.", "Evet, büyük.", ["I can swim.", "My name is Tom."]),
+        ("Can the rabbit jump?", "Tavşan zıplayabilir mi?", "Yes, it can jump.", "Evet, zıplayabilir.", ["It is a red ball.", "I am a farmer."])]),
+    dict(id="d6", title="Kıyafet alışverişi", ic="👗", turns=[
+        ("What do you wear?", "Ne giyiyorsun?", "I wear a hat.", "Şapka giyiyorum.", ["It is rainy.", "I see a bus."]),
+        ("What color is your dress?", "Elbisen ne renk?", "It is pink.", "Pembe.", ["I can run.", "I am a pilot."]),
+        ("Do you like it?", "Beğendin mi?", "Yes, I like it!", "Evet, beğendim!", ["It is Tuesday.", "Goodbye, teacher."])]),
+]
+DLG_BY_ID = {d["id"]: d for d in DIALOGS}
+ACTS = [("mm", "Eşleştir", "🧩", "Kartları eşleştir"), ("hm", "Kuş Kurtar", "🛟", "Harfleri tahmin et"), ("dlg", "Sahne", "🎭", "Civi ile konuş"),
+        ("story", "Hikâye", "📖", "Kendi hikâyen"), ("speak", "Konuş", "🎤", "Söyle, dinlesin"), ("hunt", "Kelime avı", "📸", "Eşya fotoğrafla"),
+        ("civi", "Civi", "💬", "Sohbet ve cümle")]
+
 # ------------------------------------------------------------------
 # STATE (Türkiye saatine göre gün)
 # ------------------------------------------------------------------
-now = datetime.utcnow() + timedelta(hours=3)
+def utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+now = utcnow() + timedelta(hours=3)
 today = now.date()
 DEFAULTS = dict(screen="nest", unit=None, phase="learn", nest={}, custom=[], hist={}, streak=1, last_day=None,
                 qs=[], qi=0, score=0, picked=None, ok=False, built=[], pool=[], checked=False, sfx=False,
@@ -347,16 +383,45 @@ DEFAULTS = dict(screen="nest", unit=None, phase="learn", nest={}, custom=[], his
                 user=None, role="student", class_code="", guest=False, saved_h="", set_token=None, al_tried=False,
                 # --- yeni ---
                 xp=0, seeds=0, owned=[], eq={}, accent="us", chest_day="", hw=[], placed="", ai_day="", ai_n=0,
-                hm=None, hm_wins=0, chats=0, chat=[], fix=None, qt=0, sess=dict(xp=0, seeds=0), pl={})
+                hm=None, hm_wins=0, chats=0, chat=[], fix=None, qt=0, sess=dict(xp=0, seeds=0, t=[]), pl={},
+                freeze=0, tests=[], big=False, calm=False, dys=False, dlg_done=[], dlg=None, act=None, t0=0.0)
 for k, v in DEFAULTS.items():
     st.session_state.setdefault(k, v)
 S = st.session_state
+if not S.t0:
+    S.t0 = time.time()
+_x = ""
+if S.dys:
+    _x += ("@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap');"
+           "html,body,.stApp,button,input,textarea{font-family:'Lexend',sans-serif!important;letter-spacing:.02em}")
+if S.big:
+    _x += (".ask{font-size:27px!important}.opt{font-size:23px!important;min-height:64px!important}.w{font-size:24px!important}"
+           ".stButton>button{font-size:19px!important}.card .t{font-size:22px!important}.bub{font-size:20px!important}.row{font-size:17px}")
+if S.calm:
+    _x += "*{animation:none!important;transition:none!important}"
+if _x:
+    st.markdown(f"<style>{_x}</style>", unsafe_allow_html=True)
 
 
 def touch_day():
-    if S.last_day != today.isoformat():
-        S.streak = S.streak + 1 if S.last_day == (today - timedelta(1)).isoformat() else 1
-        S.last_day = today.isoformat()
+    t = today.isoformat()
+    if S.last_day != t:
+        try:
+            gap = (today - date.fromisoformat(S.last_day)).days if S.last_day else None
+        except ValueError:
+            gap = None
+        if gap == 1:
+            S.streak += 1
+        elif gap == 2 and S.freeze > 0:
+            S.freeze -= 1
+            S.streak += 1
+            st.toast("Seri koruyucu seni kurtardı, serin devam ediyor!")
+        else:
+            S.streak = 1
+        S.last_day = t
+    cut = (today - timedelta(90)).isoformat()
+    for d in [d for d in S.hist if d < cut]:
+        del S.hist[d]
 
 
 def W():
@@ -399,6 +464,33 @@ def hard_ids(n=5):
 
 def new_entry():
     return dict(box=0, due=today.isoformat(), ok=0, n=0, ms=0)
+
+
+TEST_MODES = ("placement", "pretest", "posttest")
+LEAGUES = [("Bronz", 0, "🥉"), ("Gümüş", 100, "🥈"), ("Altın", 250, "🥇"), ("Elmas", 500, "💎")]
+
+
+def weekly_xp():
+    start = today - timedelta(today.weekday())
+    return sum(S.hist.get((start + timedelta(i)).isoformat(), {}).get("xp", 0) for i in range(7))
+
+
+def league(x=None):
+    x = weekly_xp() if x is None else x
+    return max((lg for lg in LEAGUES if x >= lg[1]), key=lambda lg: lg[1])
+
+
+def test_ids():
+    return [u["words"][(i * 2 + 1) % 6]["id"] for g in GRADES.values() for i, u in enumerate(g["units"])]
+
+
+def get_test(kind):
+    xs = [t for t in S.tests if t.get("kind") == kind]
+    return (xs[0] if kind == "pre" else xs[-1]) if xs else None
+
+
+def tpct(t):
+    return int(round(t["score"] / t["total"] * 100)) if t and t.get("total") else 0
 
 
 # ------------------------------------------------------------------
@@ -603,12 +695,12 @@ def build_session(wids, sents, mode):
     qs = []
     for wid in wids:
         w = ws[wid]
-        for k in (("see",) if mode == "placement" else ("see", "hear")):
+        for k in (("see",) if mode in TEST_MODES else ("see", "hear")):
             o = [w] + distractors(w, pool, 3)
             random.shuffle(o)
             qs.append(dict(k=k, w=w, opts=o))
     random.shuffle(qs)
-    if mode != "placement":
+    if mode not in TEST_MODES:
         spell = [i for i in wids if " " not in ws[i]["en"] and len(ws[i]["en"]) <= 8]
         random.shuffle(spell)
         qs += [dict(k="spell", w=ws[i]) for i in spell[:2]]
@@ -624,7 +716,7 @@ def build_session(wids, sents, mode):
         qs += [dict(k="dict", w=ws[i]) for i in dic[:1]]
         qs += [dict(k="sent", s=s) for s in sents]
     go(screen="play", phase="quiz", qs=qs, qi=0, score=0, picked=None, built=[], pool=[], checked=False,
-       sfx=False, wids=wids, bad=[], mode=mode, qt=0, sess=dict(xp=0, seeds=0))
+       sfx=False, wids=wids, bad=[], mode=mode, qt=0, sess=dict(xp=0, seeds=0, t=[]), pl={})
 
 
 def start_review():
@@ -643,6 +735,12 @@ def start_placement():
         wids += random.sample([i for i in BASE_WORDS if i[0] == g], 4)
     build_session(wids, [], "placement")
     S.pl = {}
+
+
+def start_test(kind):
+    ids = test_ids()
+    random.shuffle(ids)
+    build_session(ids, [], kind + "test")
 
 
 def start_unit(unit):
@@ -688,24 +786,33 @@ def gain(xp=0, seeds=0):
     S.seeds += seeds
     S.sess["xp"] += xp
     S.sess["seeds"] += seeds
+    if xp:
+        hbump("xp", xp)
     if level()[0] > L0:
         st.toast(f"Seviye atladın! Seviye {level()[0]}")
 
 
 def award(ok, wid=None):
-    S.ok, S.sfx = ok, True
+    test = S.mode in TEST_MODES
+    S.ok, S.sfx = ok, not test
     S.score += int(ok)
     dt = time.time() - S.qt if S.qt else None
     S.qt = 0
+    if test:
+        if wid:
+            r = S.pl.setdefault(wid[0], [0, 0])
+            r[0] += int(ok)
+            r[1] += 1
+            if not ok and wid not in S.bad:
+                S.bad.append(wid)
+        if dt is not None and 0 < dt < 120:
+            S.sess.setdefault("t", []).append(dt)
+        return
     if ok:
         gain(10, 1)
     if wid:
         if not ok and wid not in S.bad:
             S.bad.append(wid)
-        if S.mode == "placement":
-            r = S.pl.setdefault(wid[0], [0, 0])
-            r[0] += int(ok)
-            r[1] += 1
         if wid in S.nest:
             v = S.nest[wid]
             v["n"] += 1
@@ -719,6 +826,8 @@ def award(ok, wid=None):
 def choose(opt_id, correct_id):
     S.picked = opt_id
     award(opt_id == correct_id, correct_id)
+    if S.mode in TEST_MODES:
+        next_q()
 
 
 def pick_word(i):
@@ -747,10 +856,11 @@ def next_q():
         moves = []
         for wid in S.wids:
             v = S.nest.get(wid)
-            if not v or S.mode == "placement":
+            if not v or S.mode in TEST_MODES:
                 continue
             old = v["box"]
-            v["box"] = max(0, old - 1) if wid in S.bad else min(4, old + 1)
+            slow = old > 0 and v.get("ms", 0) > 7000  # doğru ama yavaş: kutu yükselmez, kelime biraz daha pekişir
+            v["box"] = max(0, old - 1) if wid in S.bad else old if slow else min(4, old + 1)
             v["due"] = (today + timedelta(INTERVALS[v["box"]])).isoformat()
             moves.append((wid, old, v["box"]))
         if S.mode == "review":
@@ -762,6 +872,10 @@ def next_q():
                     rec = GRADE_NAMES[g]
                     break
             S.placed = rec
+        elif S.mode in TEST_MODES:
+            ts = S.sess.get("t", [])
+            S.tests.append(dict(kind="pre" if S.mode == "pretest" else "post", date=today.isoformat(), score=S.score, total=len(S.qs),
+                                by={g: list(v) for g, v in S.pl.items()}, ms=int(sum(ts) / len(ts) * 1000) if ts else 0))
         else:
             perfect = S.score == len(S.qs)
             S.perfect += int(perfect)
@@ -852,6 +966,86 @@ def grade_of(wid):
     return wid[0]
 
 
+def dlg_opts(d, step):
+    t = d["turns"][step]
+    o = [t[2]] + list(t[4])
+    random.shuffle(o)
+    return o
+
+
+def start_dlg(did):
+    S.dlg = dict(id=did, step=0, picked=None, right=0, opts=dlg_opts(DLG_BY_ID[did], 0), done=False, bonus=0)
+
+
+def pick_dlg(i):
+    g = S.dlg
+    t = DLG_BY_ID[g["id"]]["turns"][g["step"]]
+    g["picked"] = i
+    ok = g["opts"][i] == t[2]
+    g["right"] += int(ok)
+    S.ok, S.sfx = ok, True
+    if ok:
+        gain(5, 1)
+
+
+def next_dlg():
+    g = S.dlg
+    d = DLG_BY_ID[g["id"]]
+    g["step"] += 1
+    g["picked"] = None
+    if g["step"] >= len(d["turns"]):
+        g["done"] = True
+        g["bonus"] = 5 if g["right"] == len(d["turns"]) else 0
+        gain(15, 3 + g["bonus"])
+        if g["id"] not in S.dlg_done:
+            S.dlg_done.append(g["id"])
+    else:
+        g["opts"] = dlg_opts(d, g["step"])
+
+
+def buy_freeze():
+    if S.seeds >= 30 and S.freeze < 3:
+        S.seeds -= 30
+        S.freeze += 1
+
+
+def parent_report():
+    ws = W()
+    nm = esc(S.name or S.user or "Öğrenci")
+    tot = sum(v["n"] for v in S.nest.values())
+    ok = sum(v["ok"] for v in S.nest.values())
+    days = [today - timedelta(d) for d in range(6, -1, -1)]
+    wn = sum(S.hist.get(d.isoformat(), {}).get("n", 0) for d in days)
+    active = sum(1 for d in days if S.hist.get(d.isoformat(), {}).get("n"))
+    rows = ""
+    for i, v in sorted(S.nest.items()):
+        w = ws.get(i)
+        if w:
+            acc = int(v["ok"] / v["n"] * 100) if v["n"] else 0
+            rows += f"<tr><td>{esc(w['en'])}</td><td>{esc(w['tr'])}</td><td>{STAGES[v['box']][0]}</td><td>%{acc}</td></tr>"
+    pre, post = get_test("pre"), get_test("post")
+    tline = ""
+    if pre:
+        tline = f"<p>Ön test: <b>%{tpct(pre)}</b> ({esc(pre['date'])})"
+        if post:
+            tline += f" · Son test: <b>%{tpct(post)}</b> ({esc(post['date'])}) · Değişim: <b>{tpct(post) - tpct(pre):+d} puan</b>"
+        tline += "</p>"
+    hard = ", ".join(esc(ws[i]["en"]) for i in hard_ids(5) if i in ws) or "yok"
+    css = ("body{font-family:Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1F2A44}h1{color:#FF5C8A}"
+           "table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #DCE5F5;padding:6px;text-align:left}"
+           ".k{display:inline-block;background:#F0F6FF;border-radius:12px;padding:8px 14px;margin:4px 6px 4px 0}")
+    return ("<!doctype html><html lang='tr'><head><meta charset='utf-8'><title>LingoNest Veli Raporu</title><style>" + css + "</style></head><body>"
+            f"<h1>LingoNest Veli Raporu</h1><p><b>{nm}</b> · {today.strftime('%d.%m.%Y')}</p>"
+            f"<div class='k'>Yuvadaki kelime: <b>{len(S.nest)}</b></div><div class='k'>Usta kuş: <b>{mastered()}</b></div>"
+            f"<div class='k'>Doğruluk: <b>%{int(ok / tot * 100) if tot else 0}</b></div><div class='k'>Seri: <b>{S.streak} gün</b></div>"
+            f"<div class='k'>Seviye: <b>{level()[0]}</b></div><div class='k'>Bu hafta: <b>{wn} cevap, {active}/7 gün</b></div>"
+            f"{tline}<p>Zorlandığı kelimeler: <b>{hard}</b></p><h3>Kelime listesi</h3>"
+            f"<table><tr><th>İngilizce</th><th>Türkçe</th><th>Aşama</th><th>Doğruluk</th></tr>{rows}</table>"
+            "<h3>Evde nasıl destek olabilirsiniz?</h3><ul><li>Günde 10 dakika düzenli çalışma, haftada bir uzun çalışmadan daha etkilidir.</li>"
+            "<li>Çocuğunuza öğrendiği kelimeyi evde bulup göstermesini söyleyin.</li><li>Hata yaptığında düzeltmek yerine doğrusunu birlikte tekrar edin.</li>"
+            "<li>Ekran başında 20 dakikadan sonra mola verdirin.</li></ul></body></html>")
+
+
 BADGES = [
     ("İlk yumurta", "🥚", "İlk kelimeni topla", lambda: len(S.nest) >= 1),
     ("Civciv", "🐥", "Bir kelime civciv olsun", lambda: any(v["box"] >= 2 for v in S.nest.values())),
@@ -870,13 +1064,18 @@ BADGES = [
     ("Alışverişçi", "🛍️", "Mağazadan bir şey al", lambda: len(S.owned) >= 1),
     ("Seviye 5", "⭐", "Seviye 5'e ulaş", lambda: level()[0] >= 5),
     ("Kâşif", "🗺️", "Seviye testini bitir", lambda: bool(S.placed)),
+    ("Sahne yıldızı", "🎭", "Bir sahneyi bitir", lambda: len(S.dlg_done) >= 1),
+    ("Bilim insanı", "🔬", "Ön testi tamamla", lambda: get_test("pre") is not None),
+    ("İlerleyen", "📈", "Son testte ön testten yüksek al", lambda: bool(get_test("pre") and get_test("post") and tpct(get_test("post")) > tpct(get_test("pre")))),
+    ("Hafta kahramanı", "🏆", "Bir haftada 250 XP", lambda: weekly_xp() >= 250),
 ]
 
 # ------------------------------------------------------------------
 # HESAP SİSTEMİ: yuva adı + PIN, Supabase (yoksa yerel dosya), sınıf kodu
 # ------------------------------------------------------------------
 PERSIST = ("nest", "custom", "hist", "streak", "last_day", "name", "color", "goal", "sound", "mm_wins", "stories", "perfect",
-           "xp", "seeds", "owned", "eq", "accent", "chest_day", "hw", "placed", "ai_day", "ai_n", "hm_wins", "chats")
+           "xp", "seeds", "owned", "eq", "accent", "chest_day", "hw", "placed", "ai_day", "ai_n", "hm_wins", "chats",
+           "freeze", "tests", "big", "calm", "dys", "dlg_done")
 TRMAP = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
 DATA_DIR = "data_lingonest"
 
@@ -978,7 +1177,8 @@ def class_rows(code, role):
 def summary():
     tot, ok = sum(v["n"] for v in S.nest.values()), sum(v["ok"] for v in S.nest.values())
     d = dict(words=len(S.nest), mastered=mastered(), acc=int(ok / tot * 100) if tot else 0, streak=S.streak, last=today.isoformat(),
-             xp=S.xp, hard=hard_ids(5))
+             xp=S.xp, hard=hard_ids(5), wxp=weekly_xp(),
+             pre=tpct(get_test("pre")) if get_test("pre") else None, post=tpct(get_test("post")) if get_test("post") else None)
     if S.role == "teacher":
         d["hw"] = S.hw
     return d
@@ -1028,11 +1228,11 @@ def do_login(u, pin, remember):
         row = db_get(u)
         if not row:
             return "Bu adla bir yuva bulunamadı."
-        if (row.get("locked_until") or "") > datetime.utcnow().isoformat():
+        if (row.get("locked_until") or "") > utcnow().isoformat():
             return "Çok fazla yanlış deneme. 5 dakika sonra tekrar dene."
         if row["pin_hash"] != hpin(u, pin):
             f = (row.get("fails") or 0) + 1
-            db_patch(u, dict(fails=0, locked_until=(datetime.utcnow() + timedelta(minutes=5)).isoformat()) if f >= 5 else dict(fails=f))
+            db_patch(u, dict(fails=0, locked_until=(utcnow() + timedelta(minutes=5)).isoformat()) if f >= 5 else dict(fails=f))
             return "PIN yanlış."
         db_patch(u, dict(fails=0))
         enter(row, remember)
@@ -1151,6 +1351,10 @@ def head():
     for c, (k, lab, ic) in zip(cols, items):
         c.button(lab, key=f"n_{k}", icon=ic, use_container_width=True, type="primary" if S.screen == k else "secondary",
                  on_click=go, kwargs={"screen": k})
+    if time.time() - S.t0 > 20 * 60:
+        st.markdown('<div class="card on"><div class="t">Mola zamanı!</div><small>20 dakikadır çalışıyorsun. Su iç, gözlerini dinlendir.</small></div>',
+                    unsafe_allow_html=True)
+        st.button("Dinlendim, devam", key="brk", use_container_width=True, on_click=lambda: S.__setitem__("t0", time.time()))
 
 
 def quests():
@@ -1177,6 +1381,9 @@ if S.screen == "nest":
     st.markdown(f'<div class="hero"><span class="bob">{chick(64)}</span><div><h2>Merhaba {nm}!</h2>'
                 f'<p>{S.streak} gündür yuvana bakıyorsun.</p></div></div>'
                 f'<div class="lvl"><b>Seviye {L}</b><div class="bar"><div style="width:{lp}%"></div></div><small>{need} XP</small></div>', unsafe_allow_html=True)
+    lg = league()
+    st.markdown(f'<div class="hint" style="margin-top:-4px">{tw(lg[2], 18)} {lg[0]} ligi · bu hafta {weekly_xp()} XP'
+                f'{" · " + str(S.freeze) + " seri koruyucu" if S.freeze else ""}</div>', unsafe_allow_html=True)
     st.markdown(nest_svg([v["box"] for v in S.nest.values()], S.night), unsafe_allow_html=True)
     nxt_d = next(((t, n) for t, n in DECOS if len(S.nest) < t), None)
     st.markdown(f'<div class="hint">{f"{nxt_d[0] - len(S.nest)} kelime sonra yeni süs: {nxt_d[1]}" if nxt_d else "Yuvan tüm süslerle donandı"}</div>', unsafe_allow_html=True)
@@ -1220,11 +1427,11 @@ if S.screen == "nest":
                           type="secondary" if have == len(u["words"]) else "primary", on_click=start_unit, args=(u,))
         studs = class_rows(S.class_code, "student")
         if studs:
-            with st.expander("Sınıf sıralaması"):
-                top = sorted(studs, key=lambda r_: -r_["summary"].get("xp", 0))[:5]
+            with st.expander("Bu haftanın sıralaması"):
+                top = sorted(studs, key=lambda r_: -r_["summary"].get("wxp", 0))[:5]
                 st.markdown("".join(
                     f'<div class="row"><b>{i + 1}.</b><span style="flex:1">{esc(r_["username"])}{" (sen)" if r_["username"] == S.user else ""}</span>'
-                    f'<small>{r_["summary"].get("xp", 0)} XP</small></div>' for i, r_ in enumerate(top)), unsafe_allow_html=True)
+                    f'<small>{league(r_["summary"].get("wxp", 0))[2]} {r_["summary"].get("wxp", 0)} XP</small></div>' for i, r_ in enumerate(top)), unsafe_allow_html=True)
 
     wd = list(BASE_WORDS.values())[today.toordinal() % len(BASE_WORDS)]
     st.markdown(f'<h3 style="margin-top:18px">Günün kelimesi</h3><div class="card"><div class="art" style="margin:0 0 8px">{pic(wd["e"], 96)}</div>'
@@ -1269,9 +1476,51 @@ elif S.screen == "explore":
 
 elif S.screen == "adv":
     head()
-    t0, t1, t2, t3, t4, t5 = st.tabs(["Eşleştir", "Kuş Kurtar", "Hikâye", "Kelime avı", "Konuş", "Civi"])
     nest_words = [W()[i] for i in S.nest if i in W()]
-    with t0:
+    if S.act:
+        st.button("Geri", icon=":material/arrow_back:", on_click=go, kwargs={"act": None})
+    if S.act is None:
+        cols = st.columns(2)
+        for i, (k_, nm_, em, sub) in enumerate(ACTS):
+            with cols[i % 2]:
+                st.markdown(f'<div class="card">{tw(em, 44)}<div class="t">{nm_}</div><small>{sub}</small></div>', unsafe_allow_html=True)
+                st.button("Aç", key=f"act_{k_}", type="primary", use_container_width=True, on_click=go, kwargs={"act": k_})
+    elif S.act == "dlg":
+        g = S.dlg
+        if not g:
+            st.caption("Civi ile kısa konuşmalar yap. Her sahnede 3 cevap seçeceksin.")
+            for d in DIALOGS:
+                c1, c2 = st.columns([3, 2])
+                c1.markdown(f'<div class="row">{tw(d["ic"], 26)}<span style="flex:1">{d["title"]}</span>'
+                            f'<small>{"✔" if d["id"] in S.dlg_done else ""}</small></div>', unsafe_allow_html=True)
+                c2.button("Başla", key=f"dl_{d['id']}", use_container_width=True, type="primary", on_click=start_dlg, args=(d["id"],))
+        else:
+            d = DLG_BY_ID[g["id"]]
+            if g["done"]:
+                if g["right"] == len(d["turns"]):
+                    st.balloons()
+                st.markdown(f'<div class="big"><span class="bob">{chick(100)}</span><h1>Sahne bitti!</h1>'
+                            f'<p style="font-weight:700">{g["right"]}/{len(d["turns"])} doğru · +15 XP{" · +5 bonus tohum" if g["bonus"] else ""}</p></div>',
+                            unsafe_allow_html=True)
+                st.button("Başka sahne seç", type="primary", use_container_width=True, on_click=lambda: S.__setitem__("dlg", None))
+            else:
+                st.markdown(f"<h3>{tw(d['ic'], 28)} {d['title']} · {g['step'] + 1}/{len(d['turns'])}</h3>", unsafe_allow_html=True)
+                hist = "".join(f'<div class="bub bot">{esc(t[0])}</div><div class="bub me">{esc(t[2])}</div>' for t in d["turns"][:g["step"]])
+                t = d["turns"][g["step"]]
+                st.markdown(f'{hist}<div class="bub bot">{esc(t[0])}<br><small style="color:#5B6A8A">{esc(t[1])}</small></div>', unsafe_allow_html=True)
+                speak_html(t[0], auto=g["picked"] is None, label="Dinle")
+                if g["picked"] is None:
+                    for i, o in enumerate(g["opts"]):
+                        st.button(o, key=f"dlo{g['step']}_{i}", use_container_width=True, on_click=pick_dlg, args=(i,))
+                else:
+                    sfx(S.ok)
+                    for i, o in enumerate(g["opts"]):
+                        cls = "right" if o == t[2] else "wrong" if i == g["picked"] else "dim"
+                        st.markdown(f"<div class='opt {cls}'>{esc(o)}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='sheet {'ok' if S.ok else 'no'}'>{chick(52, not S.ok)}<div><b>{'Harika!' if S.ok else 'Doğrusu:'}</b>"
+                                f"<br><span>{esc(t[2])} = {esc(t[3])}</span></div></div>", unsafe_allow_html=True)
+                    st.button("Devam", type="primary", use_container_width=True, on_click=next_dlg)
+    elif S.act == "mm":
         st.button("Yeni oyun" if S.mm else "Oyuna başla", key="mm_start", type="primary", use_container_width=True, on_click=start_mm)
         m = S.mm
         if m:
@@ -1286,7 +1535,7 @@ elif S.screen == "adv":
                     m["won"] = True
                     st.balloons()
                 st.success(f"Hepsini buldun! {m['tries']} hamlede bitirdin. +20 XP, +5 tohum")
-    with t1:
+    elif S.act == "hm":
         st.caption("Harfleri tahmin et, kuşu kurtar. 6 canın var.")
         st.button("Yeni kelime" if S.hm else "Oyuna başla", key="hm_start", type="primary", use_container_width=True, on_click=start_hm)
         h = S.hm
@@ -1310,7 +1559,7 @@ elif S.screen == "adv":
                 else:
                     st.error(f"Bu sefer olmadı. Kelime: {w['en']}")
                 speak_html(w["en"])
-    with t2:
+    elif S.act == "story":
         if len(nest_words) < 3:
             st.info("Hikâye için yuvaya en az 3 kelime topla.")
         else:
@@ -1319,7 +1568,7 @@ elif S.screen == "adv":
             if S.story:
                 st.markdown(f'<div class="card" style="text-align:left;font-size:18px">{esc(S.story)}</div>', unsafe_allow_html=True)
                 speak_html(S.story, label="Hikâyeyi dinle")
-    with t3:
+    elif S.act == "hunt":
         if not api_key():
             st.info("Kelime avı için yapay zekâ anahtarı gerekir (ANTHROPIC_API_KEY). Öğretmen ayarlardan ekleyebilir.")
         elif not ai_ready():
@@ -1353,11 +1602,11 @@ elif S.screen == "adv":
                 st.markdown(f'<div class="card"><div class="art">{pic(w["e"], 130)}</div><div class="t">{w["en"]} = {w["tr"]}</div><small>Yuvana yumurta olarak eklendi</small></div>',
                             unsafe_allow_html=True)
                 speak_html(w["en"])
-    with t4:
+    elif S.act == "speak":
         pool = nest_words[:6] if nest_words else list(BASE_WORDS.values())[:6]
         st.caption("Söyle düğmesine bas ve kelimeyi yüksek sesle söyle.")
         speaking(pool)
-    with t5:
+    elif S.act == "civi":
         if not api_key():
             st.info("Civi ile konuşmak için yapay zekâ anahtarı gerekir (ANTHROPIC_API_KEY).")
         elif not ai_ready():
@@ -1405,7 +1654,7 @@ elif S.screen == "adv":
 
 elif S.screen == "panel":
     head()
-    p1, p4, p2, p5, p3 = st.tabs(["Gelişim", "Analiz", "Rozetler", "Mağaza", "Ayarlar"])
+    p1, p4, p6, p2, p5, p3 = st.tabs(["Gelişim", "Analiz", "Test", "Rozet", "Mağaza", "Ayar"])
     with p1:
         days = [today - timedelta(d) for d in range(6, -1, -1)]
         H = [S.hist.get(d.isoformat(), {}) for d in days]
@@ -1442,6 +1691,8 @@ elif S.screen == "panel":
                 w = W()[i]
                 cw.writerow([w["en"], w["tr"], w.get("u", ""), v["box"], v["ok"], v["n"], v.get("ms", 0), v["due"]])
         st.download_button("Rapor (CSV)", buf.getvalue(), "lingonest_rapor.csv", use_container_width=True, icon=":material/download:")
+        st.download_button("Veli raporu (HTML)", parent_report(), "lingonest_veli_raporu.html", mime="text/html", use_container_width=True,
+                           icon=":material/description:")
     with p4:
         ents = [(i, v) for i, v in S.nest.items() if i in W()]
         ms = [v["ms"] for _, v in ents if v.get("ms")]
@@ -1472,6 +1723,39 @@ elif S.screen == "panel":
             st.markdown("<h3>Önümüzdeki 7 gün bakım yükü</h3><div class='chart'>" + "".join(
                 f'<div class="cc {"t" if d == 0 else ""}"><em>{v or ""}</em><i style="height:{max(4, int(v / mxl * 110))}px"></i><span>{DAYS[(today + timedelta(d)).weekday()]}</span></div>'
                 for d, v in enumerate(load)) + "</div>", unsafe_allow_html=True)
+    with p6:
+        pre, post = get_test("pre"), get_test("post")
+        st.markdown('<div class="card"><div class="t">Öğrenme testi</div><small>Aynı 18 kelimelik test başlangıçta ve birkaç gün sonra yapılır. '
+                    'Aradaki fark gelişimini gösterir. Testte doğru cevaplar gösterilmez ve XP verilmez.</small></div>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        c1.markdown(f'<div class="tile"><b>{"%" + str(tpct(pre)) if pre else "-"}</b><span>Ön test{" · " + esc(pre["date"]) if pre else ""}</span></div>',
+                    unsafe_allow_html=True)
+        c2.markdown(f'<div class="tile"><b>{"%" + str(tpct(post)) if post else "-"}</b><span>Son test{" · " + esc(post["date"]) if post else ""}</span></div>',
+                    unsafe_allow_html=True)
+        c1.button("Ön test yapıldı" if pre else "Ön testi yap", key="t_pre", use_container_width=True, type="secondary" if pre else "primary",
+                  disabled=bool(pre), on_click=start_test, args=("pre",))
+        c2.button("Son testi tekrarla" if post else "Son testi yap", key="t_post", use_container_width=True,
+                  type="primary" if pre else "secondary", disabled=not pre, on_click=start_test, args=("post",))
+        if pre and not post:
+            st.caption("Son testi en az bir hafta çalıştıktan sonra yapmanı öneririz.")
+        if pre and post:
+            dd = tpct(post) - tpct(pre)
+            st.markdown(f'<div class="card on"><div class="t">{tw("📈", 26)} {dd:+d} puan</div><small>Son test eksi ön test</small></div>', unsafe_allow_html=True)
+            rows = ""
+            for g, gn in GRADE_NAMES.items():
+                a, b = pre.get("by", {}).get(g), post.get("by", {}).get(g)
+                pa = int(a[0] / a[1] * 100) if a and a[1] else 0
+                pb = int(b[0] / b[1] * 100) if b and b[1] else 0
+                rows += f'<div class="row"><span style="width:78px">{gn}</span><div class="bar"><div style="width:{pb}%"></div></div><small>%{pa} → %{pb}</small></div>'
+            st.markdown("<h3>Sınıf düzeyine göre</h3>" + rows, unsafe_allow_html=True)
+        if S.tests:
+            tb = io.StringIO()
+            tw_ = csv.writer(tb)
+            tw_.writerow(["tur", "tarih", "dogru", "toplam", "yuzde", "ort_tepki_ms", "anaokulu", "sinif1", "sinif2"])
+            for t in S.tests:
+                by = t.get("by", {})
+                tw_.writerow([t["kind"], t["date"], t["score"], t["total"], tpct(t), t.get("ms", 0)] + [f"{by[g][0]}/{by[g][1]}" if g in by else "" for g in "kab"])
+            st.download_button("Test sonuçları (CSV)", tb.getvalue(), "lingonest_testler.csv", use_container_width=True, icon=":material/download:")
     with p2:
         got = [b for b in BADGES if b[3]()]
         html = "".join(f'<div class="bgi {"" if b in got else "off"}">{tw(b[1], 56)}<div>{b[0]}</div><small>{b[2]}</small></div>' for b in BADGES)
@@ -1489,6 +1773,9 @@ elif S.screen == "panel":
                     st.button("Çıkar" if worn else "Tak", key=f"eq_{i}", use_container_width=True, on_click=equip, args=(i,))
                 else:
                     st.button("Satın al", key=f"buy_{i}", type="primary", use_container_width=True, disabled=S.seeds < price, on_click=buy, args=(i,))
+        st.markdown(f'<div class="card"><div class="t">{tw("🛡️", 26)} Seri koruyucu · {S.freeze}/3</div>'
+                    '<small>Bir gün çalışamazsan serin bozulmaz · 30 tohum</small></div>', unsafe_allow_html=True)
+        st.button("Satın al", key="buy_freeze", type="primary", use_container_width=True, disabled=S.seeds < 30 or S.freeze >= 3, on_click=buy_freeze)
     with p3:
         st.text_input("Adın", value=S.name, key="w_name", max_chars=20,
                       on_change=lambda: S.__setitem__("name", re.sub(r"[^\w \-]", "", S.w_name, flags=re.U).strip()[:20]))
@@ -1499,183 +1786,11 @@ elif S.screen == "panel":
         st.select_slider("Günlük hedef (doğru cevap)", [5, 10, 15, 20, 30], value=S.goal, key="w_goal",
                          on_change=lambda: S.__setitem__("goal", S.w_goal))
         st.toggle("Ses efektleri", value=S.sound, key="w_sound", on_change=lambda: S.__setitem__("sound", S.w_sound))
+        st.toggle("Büyük yazı", value=S.big, key="w_big", on_change=lambda: S.__setitem__("big", S.w_big))
+        st.toggle("Okuması kolay yazı tipi", value=S.dys, key="w_dys", on_change=lambda: S.__setitem__("dys", S.w_dys))
+        st.toggle("Sakin mod (animasyonsuz)", value=S.calm, key="w_calm", on_change=lambda: S.__setitem__("calm", S.w_calm))
         if S.user:
             st.markdown(f'<div class="row"><b>{esc(S.user)}</b><small>{"Öğretmen" if S.role == "teacher" else "Öğrenci"}'
                         f'{" · Sınıf kodu: " + esc(S.class_code) if S.class_code else ""}</small></div>', unsafe_allow_html=True)
             st.button("Çıkış yap", icon=":material/logout:", use_container_width=True, on_click=logout)
-            with st.expander("Hesabı sil"):
-                st.caption("Tüm ilerleme ve hesap kalıcı olarak silinir.")
-                if st.checkbox("Silinmesini istiyorum", key="del_ok") and st.button("Hesabı kalıcı sil", use_container_width=True):
-                    try:
-                        db_delete(S.user)
-                        logout()
-                        st.rerun()
-                    except Exception as ex:
-                        st.error(f"Silinemedi ({type(ex).__name__}).")
-        else:
-            st.info("Misafir modundasın, ilerleme kaydedilmez.")
-            st.button("Giriş yap veya kayıt ol", type="primary", use_container_width=True, on_click=go, kwargs={"guest": False})
-        st.download_button("Yedek indir (JSON)", json.dumps({k: S[k] for k in PERSIST}), "lingonest_yedek.json", use_container_width=True,
-                           icon=":material/save:")
-        up = st.file_uploader("Yedek yükle (JSON)", type="json", key="restore")
-        if up is not None and st.button("Yedeği geri yükle", use_container_width=True):
-            try:
-                d = json.load(up)
-                for k in PERSIST:
-                    if k in d and (DEFAULTS[k] is None or type(d[k]) is type(DEFAULTS[k])):
-                        S[k] = d[k]
-                S.nest = {i: dict(box=min(4, max(0, int(v.get("box", 0)))), due=str(v.get("due", today.isoformat())), ok=int(v.get("ok", 0)),
-                                  n=int(v.get("n", 0)), ms=int(v.get("ms", 0))) for i, v in S.nest.items() if isinstance(v, dict)}
-                S.name = re.sub(r"[^\w \-]", "", S.name, flags=re.U)[:20]
-                st.success("Yedek yüklendi.")
-            except Exception as ex:
-                st.error(f"Yedek okunamadı ({type(ex).__name__}).")
-        st.caption("Görseller: Twemoji, CC-BY 4.0")
-
-elif S.screen == "class" and S.role == "teacher":
-    head()
-    st.markdown(f'<div class="hero"><div><h2>Sınıf kodun: {esc(S.class_code)}</h2><p>Öğrenciler kayıt olurken bu kodu girer.</p></div></div>', unsafe_allow_html=True)
-    HW_OPTS = {f"{u['title']} · {u['tr']}": u["id"] for u in ALL_UNITS}
-    sel = st.multiselect("Bu haftanın ödevi (üniteler)", list(HW_OPTS), default=[k for k, v in HW_OPTS.items() if v in S.hw], key="hw_sel")
-    st.button("Ödevi kaydet", type="primary", use_container_width=True, icon=":material/assignment:",
-              on_click=lambda: S.__setitem__("hw", [HW_OPTS[k] for k in S.hw_sel]))
-    try:
-        studs = db_class(S.class_code, "student")
-    except Exception as ex:
-        studs = []
-        st.error(f"Liste alınamadı ({type(ex).__name__}).")
-    if not studs:
-        st.info("Henüz sınıfa katılan öğrenci yok.")
-    else:
-        rows, buf = "", io.StringIO()
-        cw = csv.writer(buf)
-        cw.writerow(["ogrenci", "kelime", "usta_kus", "dogruluk", "seri", "xp", "son_giris"])
-        cutoff = (today - timedelta(3)).isoformat()
-        for r in sorted(studs, key=lambda r: -(r.get("summary") or {}).get("words", 0)):
-            sm = r.get("summary") or {}
-            idle = " 💤" if (sm.get("last") or "") < cutoff else ""
-            rows += (f'<div class="row"><b style="flex:1">{esc(r["username"])}{idle}</b><small>{sm.get("words", 0)} kelime · {sm.get("mastered", 0)} usta · '
-                     f'%{sm.get("acc", 0)} · {sm.get("xp", 0)} XP · {esc(str(sm.get("last", "-")))}</small></div>')
-            cw.writerow([r["username"], sm.get("words", 0), sm.get("mastered", 0), sm.get("acc", 0), sm.get("streak", 0), sm.get("xp", 0), sm.get("last", "")])
-        st.markdown(f"<h3>{len(studs)} öğrenci</h3>{rows}<div class='hint'>💤 = 3 günden uzun süredir girmedi</div>", unsafe_allow_html=True)
-        cnt = Counter(i for r in studs for i in ((r.get("summary") or {}).get("hard") or []) if i in BASE_WORDS)
-        if cnt:
-            st.markdown("<h3>Sınıfın zorlandığı kelimeler</h3>" + "".join(
-                f'<div class="row">{pic(BASE_WORDS[i]["e"], 30)}<span style="flex:1">{BASE_WORDS[i]["en"]} · {BASE_WORDS[i]["tr"]}</span><small>{c} öğrenci</small></div>'
-                for i, c in cnt.most_common(5)), unsafe_allow_html=True)
-        st.download_button("Sınıf raporu (CSV)", buf.getvalue(), "sinif_raporu.csv", use_container_width=True, icon=":material/download:")
-
-elif S.screen == "play":
-    st.button("Çık", icon=":material/close:", on_click=go, kwargs={"screen": "nest"})
-    if S.phase == "learn":
-        u = S.unit
-        st.markdown(f"<h2>{tw(u['ic'], 34)} {u['title']}</h2>", unsafe_allow_html=True)
-        with st.spinner("Sesler hazırlanıyor"):
-            flashcards(u)
-        st.button("Yuvaya ekle ve oyna", type="primary", use_container_width=True, on_click=add_to_nest)
-
-    elif S.phase == "quiz":
-        q = S.qs[S.qi]
-        if not S.qt:
-            S.qt = time.time()
-        st.markdown(f'<div class="bar"><div style="width:{S.qi / len(S.qs) * 100}%"></div></div>', unsafe_allow_html=True)
-        if q["k"] in ("see", "hear", "fill"):
-            w, kind = q["w"], q["k"]
-            text_opts = kind in ("see", "fill")
-            if kind == "see":
-                st.markdown(f"<p class='ask'>Bu İngilizce ne?</p><div class='art'>{pic(w['e'], 128)}</div>", unsafe_allow_html=True)
-                speak_html(w["en"])
-            elif kind == "hear":
-                st.markdown("<p class='ask'>Dinle, doğru resmi seç</p>", unsafe_allow_html=True)
-                speak_html(w["en"], auto=S.picked is None)
-            else:
-                st.markdown(f"<p class='ask'>Boşluğu doldur</p><div class='art'><h2 style='margin:0'>{esc(q['blank'])}</h2>"
-                            f"<p style='margin:6px 0 0'>Eksik kelime: {w['tr']}</p></div>", unsafe_allow_html=True)
-            cols = st.columns(2)
-            for i, o in enumerate(q["opts"]):
-                with cols[i % 2]:
-                    inner = o["en"] if text_opts else pic(o["e"], 84)
-                    if S.picked is None:
-                        if text_opts:
-                            st.button(inner, key=f"o{S.qi}_{i}", use_container_width=True, on_click=choose, args=(o["id"], w["id"]))
-                        else:
-                            st.markdown(f"<div class='opt'>{inner}</div>", unsafe_allow_html=True)
-                            st.button("Seç", key=f"o{S.qi}_{i}", use_container_width=True, on_click=choose, args=(o["id"], w["id"]))
-                    else:
-                        cls = "right" if o["id"] == w["id"] else "wrong" if o["id"] == S.picked else "dim"
-                        st.markdown(f"<div class='opt {cls}'>{inner}</div>", unsafe_allow_html=True)
-            if S.picked is not None:
-                sfx(S.ok)
-                detail = w["s"] if kind == "fill" else f"{w['en']} = {w['tr']}"
-                st.markdown(f"<div class='sheet {'ok' if S.ok else 'no'}'>{chick(52, not S.ok)}<div><b>{random.choice(['Harika!', 'Süper!', 'Bravo!']) if S.ok else 'Doğrusu:'}</b>"
-                            f"<br><span>{esc(detail)}</span></div></div>", unsafe_allow_html=True)
-                if kind == "fill":
-                    speak_html(w["s"])
-                st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
-        elif q["k"] == "dict":
-            w, key = q["w"], f"dc{S.qi}"
-            st.markdown("<p class='ask'>Duyduğun kelimeyi yaz</p>", unsafe_allow_html=True)
-            speak_html(w["en"], auto=not S.checked)
-            if not S.checked:
-                st.text_input("Kelime", key=key, label_visibility="collapsed", placeholder="Buraya yaz", max_chars=24)
-                st.button("Kontrol et", type="primary", use_container_width=True, on_click=check_dict, args=(key, w))
-            else:
-                sfx(S.ok)
-                st.markdown(f"<div class='sheet {'ok' if S.ok else 'no'}'>{chick(52, not S.ok)}<div><b>{'Mükemmel!' if S.ok else 'Doğrusu:'}</b>"
-                            f"<br><span>{w['en']} = {w['tr']}</span></div></div>", unsafe_allow_html=True)
-                st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
-        else:
-            spell = q["k"] == "spell"
-            toks = list(q["w"]["en"].lower()) if spell else q["s"]["words"]
-            sep, wid = ("", q["w"]["id"]) if spell else (" ", None)
-            if not S.pool and not S.built and not S.checked:
-                reset_pool(toks)
-            if spell:
-                st.markdown(f"<p class='ask'>Kelimeyi harflerle yaz</p><div class='art'>{pic(q['w']['e'], 110)}<h3 style='margin:6px 0 0'>{q['w']['tr']}</h3></div>",
-                            unsafe_allow_html=True)
-            else:
-                st.markdown(f"<p class='ask'>İngilizcesini kur</p><div class='art'><h2 style='margin:0'>{q['s']['tr']}</h2></div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='built'>{''.join(f'<span class=w>{x}</span>' for x in S.built)}</div>", unsafe_allow_html=True)
-            if not S.checked:
-                nc = 4 if spell else 3
-                cols = st.columns(min(max(len(S.pool), 1), nc))
-                for i, x in enumerate(S.pool):
-                    cols[i % len(cols)].button(x, key=f"w{S.qi}_{i}_{x}", use_container_width=True, on_click=pick_word, args=(i,))
-                a, b = st.columns(2)
-                a.button("Sıfırla", icon=":material/refresh:", use_container_width=True, on_click=reset_pool, args=(toks,))
-                b.button("Kontrol et", type="primary", use_container_width=True, disabled=not S.built, on_click=check_builder, args=(toks, sep, wid))
-            else:
-                sfx(S.ok)
-                target = sep.join(toks)
-                st.markdown(f"<div class='sheet {'ok' if S.ok else 'no'}'>{chick(52, not S.ok)}<div><b>{'Mükemmel!' if S.ok else 'Doğrusu:'}</b>"
-                            f"<br><span>{target}</span></div></div>", unsafe_allow_html=True)
-                speak_html(q["w"]["en"] if spell else target)
-                st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
-
-    elif S.phase == "result":
-        if S.mode == "placement":
-            rows = "".join(
-                f'<div class="row"><b>{GRADE_NAMES[g]}</b><div class="bar"><div style="width:{int(S.pl[g][0] / S.pl[g][1] * 100)}%"></div></div>'
-                f'<small>{S.pl[g][0]}/{S.pl[g][1]}</small></div>' for g in "kab" if g in S.pl)
-            st.markdown(f'<div class="big"><span class="bob">{chick(110)}</span><h1>Başlangıç: {esc(S.placed)}</h1>'
-                        f'<p style="font-weight:700">Bu sadece öneri, istediğin üniteden başlayabilirsin.</p></div>{rows}', unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            c1.button("Keşfet", icon=":material/explore:", use_container_width=True, type="primary", on_click=go, kwargs={"screen": "explore"})
-            c2.button("Yuvama dön", use_container_width=True, on_click=go, kwargs={"screen": "nest"})
-        else:
-            moves = S.res.get("moves", [])
-            up = [m for m in moves if m[2] > m[1]]
-            if up:
-                st.balloons()
-            hatch = "".join(
-                f'<div class="hatch">{pic(W()[i]["e"], 34)}<span>{W()[i]["en"]}</span>{tw(STAGES[a][1], 30)}<span class="arr">→</span>'
-                f'<span class="up">{tw(STAGES[b][1], 38)}</span><span>{STAGES[b][0]}</span></div>' for i, a, b in moves if a != b)
-            st.markdown(f"""<div class="big"><span class="bob">{chick(110)}</span><h1>{len(up)} kelime büyüdü!</h1>
-                <p style="font-weight:700">{S.score}/{len(S.qs)} doğru</p>
-                <p style="font-weight:700">+{S.sess['xp']} XP · +{S.sess['seeds']} tohum</p></div>{hatch}""", unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            c1.button("Keşfet", icon=":material/explore:", use_container_width=True, on_click=go, kwargs={"screen": "explore"})
-            c2.button("Yuvama dön", type="primary", use_container_width=True, on_click=go, kwargs={"screen": "nest"})
-
-
-autosave()
+            with st.expander("Hesabı sil")
