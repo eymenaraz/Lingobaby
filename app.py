@@ -8,7 +8,12 @@ import json
 import os
 import random
 import re
+import string
+import time
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from html import escape as esc
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -30,6 +35,7 @@ div[data-testid="stHorizontalBlock"]{flex-direction:row!important;flex-wrap:nowr
 div[data-testid="stColumn"],div[data-testid="column"]{min-width:0!important}
 .stButton>button,.stDownloadButton>button{font-weight:700;font-size:16px;border-radius:999px;border:0;background:#fff;color:#1F2A44;
  padding:.55rem 1rem;box-shadow:0 3px 0 #C9D6EE,0 8px 18px rgba(31,42,68,.10);transition:transform .08s,box-shadow .08s}
+div[data-testid="stColumn"] .stButton>button,div[data-testid="column"] .stButton>button{padding-left:.35rem;padding-right:.35rem}
 .stButton>button:hover{background:#F7FAFF;color:#1F2A44}
 .stButton>button:active{transform:translateY(3px);box-shadow:0 0 0 #C9D6EE}
 .stButton>button[kind="primary"],.stButton button[data-testid="stBaseButton-primary"]{background:#FF5C8A;color:#fff;box-shadow:0 3px 0 #D93B69,0 8px 18px rgba(255,92,138,.28)}
@@ -48,6 +54,7 @@ div[data-baseweb="tab-highlight"]{background:#FF5C8A!important}
 .stg{display:flex;justify-content:space-between;background:#fff;border-radius:22px;padding:8px 10px;margin-bottom:10px;box-shadow:0 2px 10px rgba(31,42,68,.1)}
 .stg div{text-align:center;font-weight:700;font-size:12px}.stg b{display:block;font-size:18px}
 .card{background:#fff;border-radius:24px;padding:12px 14px;margin-bottom:6px;box-shadow:0 3px 0 #C9D6EE,0 8px 18px rgba(31,42,68,.08);text-align:center}
+.card.on{box-shadow:0 3px 0 #17B8A6,0 8px 18px rgba(23,184,166,.2)}
 .card .t{font-size:19px;font-weight:800}.card small{display:block;color:#5B6A8A;font-weight:600}
 .art{background:#fff;border-radius:30px;padding:18px;text-align:center;margin:6px 0 10px;box-shadow:inset 0 0 0 3px #FFE08A}
 .art img{filter:drop-shadow(0 8px 4px rgba(0,0,0,.1))}
@@ -84,6 +91,11 @@ div[data-baseweb="tab-highlight"]{background:#FF5C8A!important}
 .bg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
 .bgi{text-align:center;font-weight:700;font-size:13px;background:#fff;border-radius:20px;padding:10px 4px;box-shadow:0 2px 10px rgba(31,42,68,.1)}
 .bgi small{display:block;color:#5B6A8A;font-weight:600;font-size:11px}.bgi.off img{filter:grayscale(1) opacity(.3)}
+.bub{border-radius:20px;padding:8px 14px;margin:6px 0;max-width:86%;font-weight:600;font-size:17px;line-height:1.3;width:fit-content}
+.bub.bot{background:#fff;box-shadow:0 2px 0 #C9D6EE;margin-right:auto}
+.bub.me{background:#4DA3FF;color:#fff;margin-left:auto}
+.lvl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;margin:6px 0 10px}.lvl .bar{flex:1;margin:0}.lvl small{color:#5B6A8A}
+.fixed{background:#fff;border-radius:20px;padding:12px 14px;margin:8px 0;box-shadow:0 3px 0 #C9D6EE;font-weight:600}
 @keyframes pop{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @keyframes bob{50%{transform:translateY(-6px)}}
@@ -99,6 +111,11 @@ st.markdown(CSS, unsafe_allow_html=True)
 TW = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/{}.svg"
 IMG_OVERRIDE = {}
 COLORS = {"Sarı": (YOLK, "#F5A623"), "Mavi": ("#86CBFF", "#4DA3FF"), "Pembe": ("#FFB8CF", "#FF8FB0"), "Yeşil": ("#A6E8B5", "#5CCB7A")}
+
+
+def clean_emoji(s):
+    s = (s or "").strip()
+    return s if 0 < len(s) <= 8 and all(ord(c) > 0x2000 for c in s) else "⭐"
 
 
 def tw(e, px=64):
@@ -117,7 +134,7 @@ SHAPES = {"circle": ('<circle cx="50" cy="50" r="40"', CORAL), "square": ('<rect
 
 def pic(e, px=96):
     if e.startswith(("http", "data:")):
-        return f'<img src="{e}" width="{px}" height="{px}" style="object-fit:cover;border-radius:18px">'
+        return f'<img src="{esc(e)}" width="{px}" height="{px}" style="object-fit:cover;border-radius:18px">'
     if e.startswith("shp:"):
         tag, c = SHAPES[e[4:]]
         return (f'<svg width="{px}" height="{px}" viewBox="0 0 100 100">{tag} fill="{c}" stroke="rgba(0,0,0,.15)" stroke-width="3"/>'
@@ -135,8 +152,25 @@ def pic(e, px=96):
     return tw(e, px)
 
 
-def chick(px=48, sad=False):
+# ---- Mağaza: maskot aksesuarları (yuva: kafa / yüz / boyun) ----
+SHOP = {"crown": ("Taç", 40, "hat"), "party": ("Parti şapkası", 25, "hat"), "glasses": ("Güneş gözlüğü", 30, "face"),
+        "bow": ("Fiyonk", 20, "neck"), "scarf": ("Atkı", 35, "neck")}
+ACC_SVG = {
+    "crown": '<path d="M40 24 L43 6 L52 15 L60 2 L68 15 L77 6 L80 24Z" fill="#FFC531" stroke="#E0A100" stroke-width="2.5" stroke-linejoin="round"/>'
+             '<circle cx="60" cy="9" r="2.5" fill="#FF5C8A"/>',
+    "party": '<path d="M46 28 L60 3 L74 28Z" fill="#4DA3FF" stroke="#2E7FD6" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="4" r="4" fill="#FFC531"/>'
+             '<circle cx="56" cy="17" r="2.5" fill="#fff"/><circle cx="64" cy="22" r="2.5" fill="#FF5C8A"/>',
+    "glasses": '<circle cx="42" cy="56" r="11" fill="rgba(255,255,255,.28)" stroke="#1F2A44" stroke-width="3"/>'
+               '<circle cx="78" cy="56" r="11" fill="rgba(255,255,255,.28)" stroke="#1F2A44" stroke-width="3"/><path d="M53 56 h14" stroke="#1F2A44" stroke-width="3"/>',
+    "bow": '<path d="M60 96 l-15 -9 v18z M60 96 l15 -9 v18z" fill="#FF5C8A"/><circle cx="60" cy="96" r="4.5" fill="#D93B69"/>',
+    "scarf": '<path d="M22 92 q38 20 76 0 v10 q-38 20 -76 0z" fill="#FF7A59"/><rect x="74" y="98" width="12" height="20" rx="4" fill="#FF7A59"/>',
+}
+
+
+def chick(px=48, sad=False, eq=None):
     body, wing = COLORS.get(st.session_state.get("color", "Sarı"), COLORS["Sarı"])
+    eq = st.session_state.get("eq", {}) if eq is None else eq
+    acc = "".join(ACC_SVG[eq[s]] for s in ("neck", "face", "hat") if eq.get(s) in ACC_SVG)
     mouth = f'<path d="M52 78 q8 -7 16 0" stroke="{INK}" stroke-width="3" fill="none" stroke-linecap="round"/>' if sad else ""
     return (f'<svg width="{px}" height="{px}" viewBox="0 0 120 120"><path d="M52 14 q4 -10 8 0 q4 -10 8 0 q-8 8 -16 0z" fill="{CORAL}"/>'
             f'<circle cx="60" cy="64" r="46" fill="{body}"/><ellipse cx="22" cy="72" rx="12" ry="18" fill="{wing}" transform="rotate(20 22 72)"/>'
@@ -144,12 +178,13 @@ def chick(px=48, sad=False):
             f'<circle cx="42" cy="56" r="7" fill="{INK}"/><circle cx="78" cy="56" r="7" fill="{INK}"/>'
             f'<circle cx="44" cy="53" r="2.5" fill="#fff"/><circle cx="80" cy="53" r="2.5" fill="#fff"/>'
             f'<path d="M50 68 h20 l-10 12z" fill="{CORAL}"/><circle cx="30" cy="72" r="6" fill="#FFAB91" opacity=".6"/>'
-            f'<circle cx="90" cy="72" r="6" fill="#FFAB91" opacity=".6"/>{mouth}</svg>')
+            f'<circle cx="90" cy="72" r="6" fill="#FFAB91" opacity=".6"/>{mouth}{acc}</svg>')
 
 
 STAGES = [("Yumurta", "🥚"), ("Çatlıyor", "🐣"), ("Civciv", "🐥"), ("Kuş", "🐦"), ("Usta kuş", "🦜")]
 INTERVALS = [0, 1, 2, 4, 7]  # Leitner kutuları: bakım aralığı (gün)
 DECOS = [(3, "Çiçekler"), (6, "Kelebek"), (10, "Gökkuşağı"), (15, "Işık dizisi")]
+DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
 
 
 def creature(b, x, y):
@@ -294,8 +329,11 @@ GRADES = {
     ]),
 }
 ALL_UNITS = [u for g in GRADES.values() for u in g["units"]]
+UNIT_BY_ID = {u["id"]: u for u in ALL_UNITS}
 BASE_WORDS = {w["id"]: w for u in ALL_UNITS for w in u["words"]}
 RANKS = [("A1", "Dal", 0), ("A2", "Yuva", 8), ("B1", "Ağaç", 24), ("B2", "Orman", 50), ("C1", "Gökyüzü", 80)]
+GRADE_NAMES = {"k": "Anaokulu", "a": "1. Sınıf", "b": "2. Sınıf"}
+AI_LIMIT = 25  # kullanıcı başına günlük yapay zekâ çağrısı
 
 # ------------------------------------------------------------------
 # STATE (Türkiye saatine göre gün)
@@ -306,7 +344,10 @@ DEFAULTS = dict(screen="nest", unit=None, phase="learn", nest={}, custom=[], his
                 qs=[], qi=0, score=0, picked=None, ok=False, built=[], pool=[], checked=False, sfx=False,
                 wids=[], bad=[], mode="review", res={}, story="", hunt=None, name="", color="Sarı", sound=True,
                 goal=15, night=now.hour >= 19 or now.hour < 6, qday="", mm=None, mm_wins=0, stories=0, perfect=0,
-                user=None, role="student", class_code="", guest=False, saved_h="", set_token=None, al_tried=False)
+                user=None, role="student", class_code="", guest=False, saved_h="", set_token=None, al_tried=False,
+                # --- yeni ---
+                xp=0, seeds=0, owned=[], eq={}, accent="us", chest_day="", hw=[], placed="", ai_day="", ai_n=0,
+                hm=None, hm_wins=0, chats=0, chat=[], fix=None, qt=0, sess=dict(xp=0, seeds=0), pl={})
 for k, v in DEFAULTS.items():
     st.session_state.setdefault(k, v)
 S = st.session_state
@@ -344,32 +385,64 @@ def due_ids():
     return [i for i, v in S.nest.items() if v["due"] <= today.isoformat()]
 
 
+def level():
+    L = 1 + int((S.xp / 40) ** .5)
+    lo, hi = 40 * (L - 1) ** 2, 40 * L ** 2
+    return L, int((S.xp - lo) / (hi - lo) * 100), hi - S.xp
+
+
+def hard_ids(n=5):
+    ws = W()
+    return [i for _, i in sorted((v["ok"] / v["n"], i) for i, v in S.nest.items()
+                                 if v["n"] >= 2 and i in ws and v["ok"] / v["n"] < .75)][:n]
+
+
+def new_entry():
+    return dict(box=0, due=today.isoformat(), ok=0, n=0, ms=0)
+
+
 # ------------------------------------------------------------------
-# SES (gTTS) ve KONUŞMA
+# SES (gTTS) ve KONUŞMA  (aksan seçimi + paralel üretim + hata önbelleği)
 # ------------------------------------------------------------------
 @st.cache_resource
 def _audio_store():
     return {}
 
 
-def mp3(text):
-    d = _audio_store()
-    if text not in d:
-        try:
-            from gtts import gTTS
-            b = io.BytesIO()
-            gTTS(text, lang="en").write_to_fp(b)
-            d[text] = base64.b64encode(b.getvalue()).decode()
-        except Exception:
-            return ""
-    return d[text]
+def _tld():
+    return "co.uk" if S.accent == "uk" else "com"
+
+
+def _gen(d, tld, t):
+    k, f = f"{tld}|{t}", d.setdefault("__f", {})
+    if k in d or time.time() - f.get(k, 0) < 120:
+        return
+    try:
+        from gtts import gTTS
+        b = io.BytesIO()
+        gTTS(t, lang="en", tld=tld).write_to_fp(b)
+        d[k] = base64.b64encode(b.getvalue()).decode()
+    except Exception:
+        f[k] = time.time()
+
+
+def mp3_many(texts):
+    d, tld = _audio_store(), _tld()
+    todo = [t for t in set(texts) if f"{tld}|{t}" not in d]
+    if todo:
+        with ThreadPoolExecutor(6) as ex:
+            list(ex.map(lambda t: _gen(d, tld, t), todo))
 
 
 def player_js(items):
-    a = {k: mp3(t) for k, t in items.items()}
-    return (f"const A={json.dumps(a)},T={json.dumps(items)};"
+    mp3_many(list(items.values()))
+    d, tld = _audio_store(), _tld()
+    a = {k: d.get(f"{tld}|{t}", "") for k, t in items.items()}
+    lang = "en-GB" if S.accent == "uk" else "en-US"
+    dump = lambda o: json.dumps(o).replace("</", "<\\/")
+    return (f"const A={dump(a)},T={dump(items)};"
             "function play(k){speechSynthesis.cancel();if(A[k]){new Audio('data:audio/mpeg;base64,'+A[k]).play();}"
-            "else{const u=new SpeechSynthesisUtterance(T[k]);u.lang='en-US';u.rate=.85;speechSynthesis.speak(u);}}")
+            f"else{{const u=new SpeechSynthesisUtterance(T[k]);u.lang='{lang}';u.rate=.85;speechSynthesis.speak(u);}}}}")
 
 
 SPK = ('<svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/>'
@@ -417,21 +490,24 @@ def sfx(ok):
 
 
 def speaking(words):
-    rows = "".join(f'<div class="r">{pic(w["e"], 44)}<b>{w["en"]}</b><button onclick="listen({i},{json.dumps(w["en"])})">Söyle</button><span id="r{i}"></span></div>'
+    # onclick içindeki JSON tırnakları HTML-kaçışlı olmalı (&quot;), yoksa özellik bozulur
+    rows = "".join(f'<div class="r">{pic(w["e"], 44)}<b>{esc(w["en"])}</b>'
+                   f'<button onclick="listen({i},{esc(json.dumps(w["en"]))})">Söyle</button><span id="r{i}"></span></div>'
                    for i, w in enumerate(words))
+    lang = "en-GB" if S.accent == "uk" else "en-US"
     components.html(
         f"""<style>body{{margin:0;font-family:'Baloo 2',Arial}}.r{{display:flex;align-items:center;gap:10px;background:#fff;border-radius:20px;padding:8px 12px;margin:6px 0;
         box-shadow:0 2px 10px rgba(31,42,68,.12)}}.r b{{flex:1;font-size:20px;color:#1F2A44}}button{{background:#FF5C8A;color:#fff;border:0;border-radius:999px;padding:6px 16px;
         font:700 15px 'Baloo 2';cursor:pointer}}span{{font-size:13px;font-weight:700;min-width:90px}}</style>{rows}
         <script>function listen(i,t){{const R=window.SpeechRecognition||window.webkitSpeechRecognition,el=document.getElementById('r'+i);
-        if(!R){{el.textContent='Bu tarayıcı desteklemiyor';return}}const r=new R();r.lang='en-US';el.textContent='Dinliyorum...';
+        if(!R){{el.textContent='Bu tarayıcı desteklemiyor';return}}const r=new R();r.lang='{lang}';el.textContent='Dinliyorum...';
         r.onresult=e=>{{const s=e.results[0][0].transcript.toLowerCase().trim(),ok=s.includes(t.toLowerCase());
         el.textContent=ok?'Harika! ✔':'Duydum: '+s;el.style.color=ok?'#0E7C6F':'#C42B58'}};
         r.onerror=()=>{{el.textContent='Mikrofon izni ver'}};r.start()}}</script>""", height=len(words) * 66 + 10)
 
 
 # ------------------------------------------------------------------
-# YAPAY ZEKÂ (isteğe bağlı: ANTHROPIC_API_KEY varsa)
+# YAPAY ZEKÂ (isteğe bağlı: ANTHROPIC_API_KEY varsa) + günlük sınır
 # ------------------------------------------------------------------
 def api_key():
     try:
@@ -440,21 +516,28 @@ def api_key():
         return os.environ.get("ANTHROPIC_API_KEY")
 
 
-def ask_ai(content, system, max_tokens=500):
+def ai_ready():
+    if S.ai_day != today.isoformat():
+        S.ai_day, S.ai_n = today.isoformat(), 0
+    return bool(api_key()) and S.ai_n < AI_LIMIT
+
+
+def ask_ai(content, system, max_tokens=500, msgs=None):
     import anthropic
     try:
         model = st.secrets["ANTHROPIC_MODEL"]
     except Exception:
         model = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-5-5")
+    S.ai_n += 1
     r = anthropic.Anthropic(api_key=api_key()).messages.create(
-        model=model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": content}])
+        model=model, max_tokens=max_tokens, system=system, messages=msgs or [{"role": "user", "content": content}])
     return r.content[0].text.strip()
 
 
 def make_story(words):
     en = [w["en"].lower() for w in words]
     S.stories += 1
-    if api_key():
+    if ai_ready():
         try:
             return ask_ai(f"Words: {', '.join(en)}", "Write a very short, warm, funny story (5 simple English sentences, A1 level) for a 6-8 year old "
                           "Turkish child using ALL of the given words. Use only simple present tense. Output only the story.")
@@ -472,35 +555,94 @@ def identify(img_bytes):
     return json.loads(txt[txt.index("{"): txt.rindex("}") + 1])
 
 
+CHAT_SYS = ("You are Civi, a friendly baby chick who helps a Turkish child (age 6-9) practice English. Rules: reply with 1-2 very short, simple A1 English "
+            "sentences, add a tiny Turkish hint in parentheses only if needed, and always end with one simple question. Be warm, playful and encouraging. "
+            "Prefer these words the child knows: {words}. Never ask for or accept personal information (real name, address, school, phone, photos). "
+            "If the child shares personal info or raises unsafe, scary or adult topics, gently steer to animals, food, colors or toys. "
+            "If the child writes Turkish, answer in simple English and give the Turkish meaning.")
+
+
+def chat_reply():
+    ws = W()
+    known = ", ".join(ws[i]["en"].lower() for i in list(S.nest)[:25] if i in ws) or "cat, dog, apple, red"
+    msgs = [dict(m) for m in S.chat[-8:]]
+    while msgs and msgs[0]["role"] != "user":
+        msgs.pop(0)
+    return ask_ai(None, CHAT_SYS.format(words=known), 150, msgs=msgs)
+
+
+def check_sentence(word, sent):
+    if not ai_ready():
+        ok = word.lower() in sent.lower()
+        return dict(ok=ok, fixed=sent, tip="Kelimeyi cümlede kullandın!" if ok else f"Cümlende '{word}' kelimesi geçmeli.")
+    try:
+        txt = ask_ai(f'Target word: "{word}". Child sentence: "{sent}"',
+                     "You are a kind English teacher for a 7-year-old Turkish child (A1). Reply ONLY JSON: "
+                     '{"ok":true,"fixed":"corrected simple sentence","tip_tr":"one short friendly Turkish tip"}. '
+                     "ok is true only if the sentence uses the target word and is correct English.", 200)
+        d = json.loads(txt[txt.index("{"): txt.rindex("}") + 1])
+        return dict(ok=bool(d.get("ok")), fixed=str(d.get("fixed", sent))[:160], tip=str(d.get("tip_tr", ""))[:200])
+    except Exception:
+        return None
+
+
 # ------------------------------------------------------------------
 # OYUN MANTIĞI
 # ------------------------------------------------------------------
+def distractors(w, pool, n):
+    seen, out = {w["en"].lower()}, []
+    for x in random.sample(pool, min(len(pool), 20)):
+        if x["en"].lower() not in seen and len(out) < n:
+            seen.add(x["en"].lower())
+            out.append(x)
+    return out
+
+
 def build_session(wids, sents, mode):
     ws, pool = W(), list(W().values())
     qs = []
     for wid in wids:
-        w, seen, wrong = ws[wid], set(), []
-        for x in random.sample(pool, min(len(pool), 14)):
-            if x["en"] != w["en"] and x["en"] not in seen and len(wrong) < 3:
-                seen.add(x["en"])
-                wrong.append(x)
-        for k in ("see", "hear"):
-            o = [w] + wrong
+        w = ws[wid]
+        for k in (("see",) if mode == "placement" else ("see", "hear")):
+            o = [w] + distractors(w, pool, 3)
             random.shuffle(o)
             qs.append(dict(k=k, w=w, opts=o))
     random.shuffle(qs)
-    spell = [i for i in wids if " " not in ws[i]["en"] and len(ws[i]["en"]) <= 8]
-    random.shuffle(spell)
-    qs += [dict(k="spell", w=ws[i]) for i in spell[:2]]
-    qs += [dict(k="sent", s=s) for s in sents]
+    if mode != "placement":
+        spell = [i for i in wids if " " not in ws[i]["en"] and len(ws[i]["en"]) <= 8]
+        random.shuffle(spell)
+        qs += [dict(k="spell", w=ws[i]) for i in spell[:2]]
+        fills = [i for i in wids if re.search(r"\b" + re.escape(ws[i]["en"]) + r"\b", ws[i]["s"], re.I)]
+        random.shuffle(fills)
+        for i in fills[:2]:
+            w = ws[i]
+            o = [w] + distractors(w, pool, 2)
+            random.shuffle(o)
+            qs.append(dict(k="fill", w=w, opts=o, blank=re.sub(r"\b" + re.escape(w["en"]) + r"\b", "____", w["s"], count=1, flags=re.I)))
+        dic = [i for i in wids if " " not in ws[i]["en"]]
+        random.shuffle(dic)
+        qs += [dict(k="dict", w=ws[i]) for i in dic[:1]]
+        qs += [dict(k="sent", s=s) for s in sents]
     go(screen="play", phase="quiz", qs=qs, qi=0, score=0, picked=None, built=[], pool=[], checked=False,
-       sfx=False, wids=wids, bad=[], mode=mode)
+       sfx=False, wids=wids, bad=[], mode=mode, qt=0, sess=dict(xp=0, seeds=0))
 
 
 def start_review():
     ids = due_ids()
     random.shuffle(ids)
     build_session(ids[:6], [], "review")
+
+
+def start_weak():
+    build_session(hard_ids(6), [], "weak")
+
+
+def start_placement():
+    wids = []
+    for g in "kab":
+        wids += random.sample([i for i in BASE_WORDS if i[0] == g], 4)
+    build_session(wids, [], "placement")
+    S.pl = {}
 
 
 def start_unit(unit):
@@ -511,21 +653,65 @@ def add_to_nest():
     u, new = S.unit, 0
     for w in u["words"]:
         if w["id"] not in S.nest:
-            S.nest[w["id"]] = dict(box=0, due=today.isoformat(), ok=0, n=0)
+            S.nest[w["id"]] = new_entry()
             new += 1
     hbump("new", new)
     build_session([w["id"] for w in u["words"]], u["sents"], "unit")
 
 
+def add_word(wid):
+    if wid not in S.nest and wid in W():
+        S.nest[wid] = new_entry()
+        hbump("new")
+        st.toast("Yuvana yumurta olarak eklendi")
+
+
+def add_custom():
+    en, tr = S.cw_en.strip(), S.cw_tr.strip()
+    if not re.fullmatch(r"[A-Za-z][A-Za-z '\-]{0,19}", en) or not tr or len(tr) > 30:
+        st.toast("İngilizce kelime sadece harf içermeli, Türkçesini de yaz.")
+        return
+    if len(S.custom) >= 100:
+        st.toast("En fazla 100 özel kelime ekleyebilirsin.")
+        return
+    wid = f"c{len(S.custom)}"
+    S.custom.append(dict(id=wid, en=en.capitalize(), tr=esc(tr), e=clean_emoji(S.cw_e), s=f"This is {art(en)} {en.lower()}.", u="custom"))
+    S.nest[wid] = new_entry()
+    hbump("new")
+    S.cw_en, S.cw_tr, S.cw_e = "", "", ""
+    st.toast("Kendi kelimen yuvaya eklendi")
+
+
+def gain(xp=0, seeds=0):
+    L0 = level()[0]
+    S.xp += xp
+    S.seeds += seeds
+    S.sess["xp"] += xp
+    S.sess["seeds"] += seeds
+    if level()[0] > L0:
+        st.toast(f"Seviye atladın! Seviye {level()[0]}")
+
+
 def award(ok, wid=None):
     S.ok, S.sfx = ok, True
     S.score += int(ok)
+    dt = time.time() - S.qt if S.qt else None
+    S.qt = 0
+    if ok:
+        gain(10, 1)
     if wid:
         if not ok and wid not in S.bad:
             S.bad.append(wid)
+        if S.mode == "placement":
+            r = S.pl.setdefault(wid[0], [0, 0])
+            r[0] += int(ok)
+            r[1] += 1
         if wid in S.nest:
-            S.nest[wid]["n"] += 1
-            S.nest[wid]["ok"] += int(ok)
+            v = S.nest[wid]
+            v["n"] += 1
+            v["ok"] += int(ok)
+            if dt is not None and 0 < dt < 60:
+                v["ms"] = int(.7 * v["ms"] + .3 * dt * 1000) if v.get("ms") else int(dt * 1000)
     hbump("n")
     hbump("ok", int(ok))
 
@@ -544,18 +730,24 @@ def check_builder(toks, sep, wid):
     award(sep.join(S.built).lower() == sep.join(toks).lower(), wid)
 
 
+def check_dict(key, w):
+    S.checked = True
+    norm = lambda s: re.sub(r"[^a-z ]", "", (s or "").lower()).strip()
+    award(norm(S.get(key)) == norm(w["en"]), w["id"])
+
+
 def reset_pool(toks):
     S.pool, S.built = random.sample(toks, len(toks)), []
 
 
 def next_q():
     S.qi += 1
-    S.picked, S.checked, S.built, S.pool, S.sfx = None, False, [], [], False
+    S.picked, S.checked, S.built, S.pool, S.sfx, S.qt = None, False, [], [], False, 0
     if S.qi >= len(S.qs):
         moves = []
         for wid in S.wids:
             v = S.nest.get(wid)
-            if not v:
+            if not v or S.mode == "placement":
                 continue
             old = v["box"]
             v["box"] = max(0, old - 1) if wid in S.bad else min(4, old + 1)
@@ -563,11 +755,22 @@ def next_q():
             moves.append((wid, old, v["box"]))
         if S.mode == "review":
             hbump("rev")
-        S.perfect += int(S.score == len(S.qs))
+        if S.mode == "placement":
+            rec = "2. Sınıf"
+            for g in "kab":
+                if g in S.pl and S.pl[g][0] / S.pl[g][1] < .75:
+                    rec = GRADE_NAMES[g]
+                    break
+            S.placed = rec
+        else:
+            perfect = S.score == len(S.qs)
+            S.perfect += int(perfect)
+            gain(20, 5 + (10 if perfect else 0))
         S.res = dict(moves=moves)
         S.phase = "result"
 
 
+# ---- Eşleştirme ----
 def start_mm():
     ws = list(W().values())
     pool = [W()[i] for i in S.nest if i in W()]
@@ -597,6 +800,52 @@ def mm_flip(i):
             m["open"] = []
             if len(m["done"]) == len(m["cards"]):
                 S.mm_wins += 1
+                gain(20, 5)
+
+
+# ---- Kuş Kurtar (adam asmaca) ----
+def start_hm():
+    ws = W()
+    ok = lambda w: re.fullmatch(r"[A-Za-z]{3,9}", w["en"])
+    pool = [w for w in (ws[i] for i in S.nest if i in ws) if ok(w)] or [w for w in ws.values() if ok(w)]
+    S.hm = dict(id=random.choice(pool)["id"], g=[], lives=6, done=False, won=False, b=False)
+
+
+def guess_hm(c):
+    h = S.hm
+    if h["done"] or c in h["g"]:
+        return
+    h["g"].append(c)
+    word = W()[h["id"]]["en"].lower()
+    if c not in word:
+        h["lives"] -= 1
+    if all(x in h["g"] for x in word):
+        h["done"] = h["won"] = True
+        S.hm_wins += 1
+        gain(15, 3)
+    elif h["lives"] <= 0:
+        h["done"] = True
+
+
+# ---- Günlük sandık & mağaza ----
+def open_chest():
+    S.chest_day = today.isoformat()
+    n = random.choice([5, 8, 10, 15, 25])
+    S.seeds += n
+    st.toast(f"Sandıktan {n} tohum çıktı!")
+
+
+def buy(i):
+    _, price, slot = SHOP[i]
+    if S.seeds >= price and i not in S.owned:
+        S.seeds -= price
+        S.owned.append(i)
+        S.eq[slot] = i
+
+
+def equip(i):
+    slot = SHOP[i][2]
+    S.eq[slot] = None if S.eq.get(slot) == i else i
 
 
 def grade_of(wid):
@@ -616,12 +865,18 @@ BADGES = [
     ("Fotoğrafçı", "📸", "Kelime avı yap", lambda: len(S.custom) >= 1),
     ("Hikâyeci", "📖", "Hikâye oluştur", lambda: S.stories >= 1),
     ("Gezgin", "🧭", "3 sınıftan kelime topla", lambda: len({grade_of(i) for i in S.nest if i[0] in "kab"}) >= 3),
+    ("Kurtarıcı", "🛟", "Kuş Kurtar'ı kazan", lambda: S.hm_wins >= 1),
+    ("Sohbetçi", "💬", "Civi ile 5 kez konuş", lambda: S.chats >= 5),
+    ("Alışverişçi", "🛍️", "Mağazadan bir şey al", lambda: len(S.owned) >= 1),
+    ("Seviye 5", "⭐", "Seviye 5'e ulaş", lambda: level()[0] >= 5),
+    ("Kâşif", "🗺️", "Seviye testini bitir", lambda: bool(S.placed)),
 ]
 
 # ------------------------------------------------------------------
 # HESAP SİSTEMİ: yuva adı + PIN, Supabase (yoksa yerel dosya), sınıf kodu
 # ------------------------------------------------------------------
-PERSIST = ("nest", "custom", "hist", "streak", "last_day", "name", "color", "goal", "sound", "mm_wins", "stories", "perfect")
+PERSIST = ("nest", "custom", "hist", "streak", "last_day", "name", "color", "goal", "sound", "mm_wins", "stories", "perfect",
+           "xp", "seeds", "owned", "eq", "accent", "chest_day", "hw", "placed", "ai_day", "ai_n", "hm_wins", "chats")
 TRMAP = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
 DATA_DIR = "data_lingonest"
 
@@ -711,9 +966,22 @@ def db_class(code, role):
     return out
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def class_rows(code, role):
+    """Önbellekli sınıf listesi (PIN özeti gibi alanlar atılır)."""
+    try:
+        return [dict(username=r["username"], summary=r.get("summary") or {}) for r in db_class(code, role)]
+    except Exception:
+        return []
+
+
 def summary():
     tot, ok = sum(v["n"] for v in S.nest.values()), sum(v["ok"] for v in S.nest.values())
-    return dict(words=len(S.nest), mastered=mastered(), acc=int(ok / tot * 100) if tot else 0, streak=S.streak, last=today.isoformat())
+    d = dict(words=len(S.nest), mastered=mastered(), acc=int(ok / tot * 100) if tot else 0, streak=S.streak, last=today.isoformat(),
+             xp=S.xp, hard=hard_ids(5))
+    if S.role == "teacher":
+        d["hw"] = S.hw
+    return d
 
 
 def autosave():
@@ -734,6 +1002,8 @@ def enter(row, remember):
     for k in PERSIST:
         if k in d:
             S[k] = d[k]
+    for v in S.nest.values():
+        v.setdefault("ms", 0)
     S.user, S.role, S.class_code, S.saved_h = row["username"], row.get("role", "student"), row.get("class_code") or "", ""
     S.screen = "nest"
     if remember:
@@ -871,7 +1141,7 @@ flush_token()
 def head():
     r = RANKS[rank()]
     st.markdown(f"""<div class="top"><div class="bd">{chick(44)}<span>Lingo<b>Nest</b></span></div><div class="chips">
-        <span class="ch">{tw('🔥', 20)}{S.streak}</span><span class="ch">{tw('🥚', 20)}{len(S.nest)}</span>
+        <span class="ch">{tw('🔥', 20)}{S.streak}</span><span class="ch">{tw('🌰', 20)}{S.seeds}</span>
         <span class="ch rk">{r[0]}</span></div></div>""", unsafe_allow_html=True)
     items = [("nest", "Yuva", ":material/home:"), ("explore", "Keşfet", ":material/explore:"),
              ("adv", "Macera", ":material/auto_awesome:"), ("panel", "Panel", ":material/bar_chart:")]
@@ -899,15 +1169,22 @@ if S.screen == "nest":
     q_html, q_done = quests()
     if q_done and S.qday != today.isoformat():
         S.qday = today.isoformat()
+        gain(0, 10)
         st.balloons()
-        st.toast("Bugünkü üç görev tamam!")
-    st.markdown(f'<div class="hero"><span class="bob">{chick(64)}</span><div><h2>Merhaba {S.name or "kaşif"}!</h2>'
-                f'<p>{S.streak} gündür yuvana bakıyorsun.</p></div></div>', unsafe_allow_html=True)
+        st.toast("Bugünkü üç görev tamam! +10 tohum")
+    L, lp, need = level()
+    nm = esc(S.name) or "kaşif"
+    st.markdown(f'<div class="hero"><span class="bob">{chick(64)}</span><div><h2>Merhaba {nm}!</h2>'
+                f'<p>{S.streak} gündür yuvana bakıyorsun.</p></div></div>'
+                f'<div class="lvl"><b>Seviye {L}</b><div class="bar"><div style="width:{lp}%"></div></div><small>{need} XP</small></div>', unsafe_allow_html=True)
     st.markdown(nest_svg([v["box"] for v in S.nest.values()], S.night), unsafe_allow_html=True)
     nxt_d = next(((t, n) for t, n in DECOS if len(S.nest) < t), None)
     st.markdown(f'<div class="hint">{f"{nxt_d[0] - len(S.nest)} kelime sonra yeni süs: {nxt_d[1]}" if nxt_d else "Yuvan tüm süslerle donandı"}</div>', unsafe_allow_html=True)
-    st.button("Gündüze geç" if S.night else "Geceye geç", icon=":material/light_mode:" if S.night else ":material/dark_mode:",
+    b1, b2 = st.columns(2)
+    b1.button("Gündüze geç" if S.night else "Geceye geç", icon=":material/light_mode:" if S.night else ":material/dark_mode:",
               use_container_width=True, on_click=lambda: S.__setitem__("night", not S.night))
+    b2.button("Sandık açıldı" if S.chest_day == today.isoformat() else "Günlük sandık", icon=":material/redeem:",
+              use_container_width=True, disabled=S.chest_day == today.isoformat(), on_click=open_chest)
     cnt = [sum(1 for v in S.nest.values() if v["box"] == b) for b in range(5)]
     st.markdown('<div class="stg">' + "".join(f'<div>{tw(e, 30)}<b>{cnt[i]}</b>{n}</div>' for i, (n, e) in enumerate(STAGES)) + "</div>",
                 unsafe_allow_html=True)
@@ -922,6 +1199,33 @@ if S.screen == "nest":
     else:
         st.button(f"Yuva bakımı · {n} kelime bekliyor" if n else "Bugün bakım yok, yarın gel", type="primary",
                   use_container_width=True, disabled=n == 0, on_click=start_review)
+        hid = hard_ids(6)
+        if hid:
+            st.button(f"Zor kelimeleri çalış · {len(hid)} kelime", icon=":material/fitness_center:", use_container_width=True, on_click=start_weak)
+    if S.placed:
+        st.markdown(f'<div class="hint">Seviye testi önerisi: {esc(S.placed)} ile başla</div>', unsafe_allow_html=True)
+
+    # --- Öğretmenin ödevi (öğrenciler için) ---
+    if S.role == "student" and S.class_code:
+        t = class_rows(S.class_code, "teacher")
+        hw = [i for i in ((t[0]["summary"].get("hw") if t else None) or []) if i in UNIT_BY_ID]
+        if hw:
+            st.markdown("<h3 style='margin-top:14px'>Öğretmenin ödevi</h3>", unsafe_allow_html=True)
+            for uid in hw:
+                u = UNIT_BY_ID[uid]
+                have = sum(1 for w in u["words"] if w["id"] in S.nest)
+                c1, c2 = st.columns([3, 2])
+                c1.markdown(f'<div class="row">{tw(u["ic"], 26)}<span style="flex:1">{u["title"]}</span><small>{have}/{len(u["words"])}</small></div>', unsafe_allow_html=True)
+                c2.button("Tamam" if have == len(u["words"]) else "Çalış", key=f"hw_{uid}", use_container_width=True,
+                          type="secondary" if have == len(u["words"]) else "primary", on_click=start_unit, args=(u,))
+        studs = class_rows(S.class_code, "student")
+        if studs:
+            with st.expander("Sınıf sıralaması"):
+                top = sorted(studs, key=lambda r_: -r_["summary"].get("xp", 0))[:5]
+                st.markdown("".join(
+                    f'<div class="row"><b>{i + 1}.</b><span style="flex:1">{esc(r_["username"])}{" (sen)" if r_["username"] == S.user else ""}</span>'
+                    f'<small>{r_["summary"].get("xp", 0)} XP</small></div>' for i, r_ in enumerate(top)), unsafe_allow_html=True)
+
     wd = list(BASE_WORDS.values())[today.toordinal() % len(BASE_WORDS)]
     st.markdown(f'<h3 style="margin-top:18px">Günün kelimesi</h3><div class="card"><div class="art" style="margin:0 0 8px">{pic(wd["e"], 96)}</div>'
                 f'<div class="t">{wd["en"]} = {wd["tr"]}</div><small>{wd["s"]}</small></div>', unsafe_allow_html=True)
@@ -929,6 +1233,22 @@ if S.screen == "nest":
 
 elif S.screen == "explore":
     head()
+    if not S.placed:
+        st.markdown('<div class="card"><div class="t">Nereden başlamalıyım?</div><small>12 soruluk kısa testle seviyeni bul</small></div>', unsafe_allow_html=True)
+        st.button("Seviye testine başla", type="primary", use_container_width=True, icon=":material/quiz:", on_click=start_placement)
+    else:
+        st.markdown(f'<div class="card on"><div class="t">Önerilen başlangıç: {esc(S.placed)}</div></div>', unsafe_allow_html=True)
+        st.button("Testi tekrarla", use_container_width=True, icon=":material/quiz:", on_click=start_placement)
+    q = st.text_input("Kelime ara", key="srch", placeholder="İngilizce veya Türkçe kelime ara", label_visibility="collapsed").strip().lower()
+    if q:
+        hits = [w for w in W().values() if q in w["en"].lower() or q in w["tr"].lower()][:8]
+        if not hits:
+            st.caption("Bu kelimeyi bulamadım. Aşağıdan kendi kelimeni ekleyebilirsin.")
+        for w in hits:
+            c1, c2 = st.columns([4, 2])
+            c1.markdown(f'<div class="row">{pic(w["e"], 30)}<span style="flex:1">{w["en"]} · {w["tr"]}</span></div>', unsafe_allow_html=True)
+            c2.button("Yuvada" if w["id"] in S.nest else "Ekle", key=f"sr_{w['id']}", use_container_width=True, disabled=w["id"] in S.nest,
+                      on_click=add_word, args=(w["id"],))
     tabs = st.tabs([g["title"] for g in GRADES.values()])
     for tab, g in zip(tabs, GRADES.values()):
         with tab:
@@ -941,13 +1261,18 @@ elif S.screen == "explore":
                                 unsafe_allow_html=True)
                     st.button("Tekrar çalış" if have == len(u["words"]) else "Topla", key=f"u_{u['id']}", type="primary", use_container_width=True,
                               on_click=start_unit, args=(u,))
+    with st.expander("Kendi kelimemi ekle"):
+        st.text_input("İngilizce (harflerle)", key="cw_en", max_chars=20)
+        st.text_input("Türkçesi", key="cw_tr", max_chars=30)
+        st.text_input("Emoji (isteğe bağlı)", key="cw_e", max_chars=8)
+        st.button("Yuvama ekle", type="primary", use_container_width=True, on_click=add_custom)
 
 elif S.screen == "adv":
     head()
-    t0, t1, t2, t3 = st.tabs(["Eşleştir", "Hikâye", "Kelime avı", "Konuş"])
+    t0, t1, t2, t3, t4, t5 = st.tabs(["Eşleştir", "Kuş Kurtar", "Hikâye", "Kelime avı", "Konuş", "Civi"])
     nest_words = [W()[i] for i in S.nest if i in W()]
     with t0:
-        st.button("Yeni oyun" if S.mm else "Oyuna başla", type="primary", use_container_width=True, on_click=start_mm)
+        st.button("Yeni oyun" if S.mm else "Oyuna başla", key="mm_start", type="primary", use_container_width=True, on_click=start_mm)
         m = S.mm
         if m:
             st.caption(f"Hamle: {m['tries']} · Bulunan çift: {len(m['done']) // 2}/{len(m['cards']) // 2}")
@@ -960,19 +1285,45 @@ elif S.screen == "adv":
                 if not m["won"]:
                     m["won"] = True
                     st.balloons()
-                st.success(f"Hepsini buldun! {m['tries']} hamlede bitirdin.")
+                st.success(f"Hepsini buldun! {m['tries']} hamlede bitirdin. +20 XP, +5 tohum")
     with t1:
+        st.caption("Harfleri tahmin et, kuşu kurtar. 6 canın var.")
+        st.button("Yeni kelime" if S.hm else "Oyuna başla", key="hm_start", type="primary", use_container_width=True, on_click=start_hm)
+        h = S.hm
+        if h:
+            w = W()[h["id"]]
+            word = w["en"].lower()
+            shown = "".join(f'<span class="w" style="min-width:26px;text-align:center">{c.upper() if c in h["g"] or h["done"] else "_"}</span>' for c in word)
+            st.markdown(f'<div class="art">{chick(80, sad=h["lives"] <= 2)}<h3 style="margin:4px 0">{w["tr"]}</h3>'
+                        f'<div class="built" style="justify-content:center;border:0;margin:0">{shown}</div>'
+                        f'<div>{"❤️" * h["lives"]}{"🖤" * (6 - h["lives"])}</div></div>', unsafe_allow_html=True)
+            cols = st.columns(7)
+            for i, c in enumerate(string.ascii_lowercase):
+                cols[i % 7].button(c.upper(), key=f"hm_{c}", use_container_width=True, disabled=h["done"] or c in h["g"],
+                                   on_click=guess_hm, args=(c,))
+            if h["done"]:
+                if h["won"]:
+                    if not h["b"]:
+                        h["b"] = True
+                        st.balloons()
+                    st.success("Kuşu kurtardın! +15 XP, +3 tohum")
+                else:
+                    st.error(f"Bu sefer olmadı. Kelime: {w['en']}")
+                speak_html(w["en"])
+    with t2:
         if len(nest_words) < 3:
             st.info("Hikâye için yuvaya en az 3 kelime topla.")
         else:
             st.button("Yuvamdan hikâye yaz", type="primary", use_container_width=True,
                       on_click=lambda: S.__setitem__("story", make_story(random.sample(nest_words, min(5, len(nest_words))))))
             if S.story:
-                st.markdown(f'<div class="card" style="text-align:left;font-size:18px">{S.story}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="card" style="text-align:left;font-size:18px">{esc(S.story)}</div>', unsafe_allow_html=True)
                 speak_html(S.story, label="Hikâyeyi dinle")
-    with t2:
+    with t3:
         if not api_key():
             st.info("Kelime avı için yapay zekâ anahtarı gerekir (ANTHROPIC_API_KEY). Öğretmen ayarlardan ekleyebilir.")
+        elif not ai_ready():
+            st.info("Bugünlük yapay zekâ hakkın doldu, yarın tekrar gel.")
         else:
             st.caption("Kişi fotoğrafı çekme, sadece eşya göster.")
             shot = st.camera_input("Evdeki bir eşyanın fotoğrafını çek")
@@ -984,12 +1335,13 @@ elif S.screen == "adv":
                     buf = io.BytesIO()
                     im.save(buf, "JPEG", quality=80)
                     res = identify(buf.getvalue())
-                    if res.get("en"):
+                    en = (res.get("en") or "").strip()
+                    if re.fullmatch(r"[A-Za-z][A-Za-z '\-]{0,19}", en) and len(S.custom) < 100:
                         wid = f"c{len(S.custom)}"
-                        w = dict(id=wid, en=res["en"].capitalize(), tr=res["tr"], s=f"This is {art(res['en'])} {res['en'].lower()}.",
+                        w = dict(id=wid, en=en.capitalize(), tr=esc(str(res.get("tr", ""))[:30]), s=f"This is {art(en)} {en.lower()}.",
                                  e="data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode(), u="custom")
                         S.custom.append(w)
-                        S.nest[wid] = dict(box=0, due=today.isoformat(), ok=0, n=0)
+                        S.nest[wid] = new_entry()
                         S.hunt = w
                     else:
                         S.hunt = None
@@ -1001,27 +1353,73 @@ elif S.screen == "adv":
                 st.markdown(f'<div class="card"><div class="art">{pic(w["e"], 130)}</div><div class="t">{w["en"]} = {w["tr"]}</div><small>Yuvana yumurta olarak eklendi</small></div>',
                             unsafe_allow_html=True)
                 speak_html(w["en"])
-    with t3:
+    with t4:
         pool = nest_words[:6] if nest_words else list(BASE_WORDS.values())[:6]
         st.caption("Söyle düğmesine bas ve kelimeyi yüksek sesle söyle.")
         speaking(pool)
+    with t5:
+        if not api_key():
+            st.info("Civi ile konuşmak için yapay zekâ anahtarı gerekir (ANTHROPIC_API_KEY).")
+        elif not ai_ready():
+            st.info("Bugünlük yapay zekâ hakkın doldu, yarın tekrar gel.")
+        else:
+            mode = st.radio("Mod", ["Civi ile sohbet", "Cümle atölyesi"], horizontal=True, label_visibility="collapsed", key="ch_mode")
+            if mode == "Civi ile sohbet":
+                bubs = "".join(f'<div class="bub {"me" if m["role"] == "user" else "bot"}">{esc(m["content"])}</div>' for m in S.chat[-8:])
+                st.markdown(bubs or '<div class="hint">Civi\'ye "Hello!" yaz. Gerçek adını veya adresini yazma.</div>', unsafe_allow_html=True)
+                if S.chat and S.chat[-1]["role"] == "assistant":
+                    speak_html(re.sub(r"\([^)]*\)", "", S.chat[-1]["content"]), label="Dinle")
+                with st.form("chatf", clear_on_submit=True):
+                    msg = st.text_input("Mesaj", max_chars=120, label_visibility="collapsed", placeholder="İngilizce yaz...")
+                    sent = st.form_submit_button("Gönder", type="primary", use_container_width=True)
+                if sent and msg.strip():
+                    S.chat.append(dict(role="user", content=msg.strip()))
+                    try:
+                        S.chat.append(dict(role="assistant", content=chat_reply()))
+                        S.chats += 1
+                        gain(5, 0)
+                        st.rerun()
+                    except Exception as ex:
+                        S.chat.pop()
+                        st.warning(f"Civi şu an cevap veremedi ({type(ex).__name__}). Biraz sonra dene.")
+                if S.chat:
+                    st.button("Sohbeti temizle", icon=":material/delete:", use_container_width=True, on_click=lambda: S.__setitem__("chat", []))
+            else:
+                words = sorted({w["en"] for w in nest_words}) or ["Cat"]
+                target = st.selectbox("Bir kelime seç", words, key="fx_w")
+                text = st.text_input("Bu kelimeyle bir cümle yaz", max_chars=100, key="fx_s", placeholder="I see a cat.")
+                if st.button("Kontrol et", type="primary", use_container_width=True, disabled=not text.strip()):
+                    r_ = check_sentence(target, text.strip())
+                    if r_ is None:
+                        st.warning("Kontrol edilemedi, tekrar dene.")
+                    else:
+                        S.fix = r_
+                        S.chats += 1
+                        if r_["ok"]:
+                            gain(10, 2)
+                if S.fix:
+                    f = S.fix
+                    st.markdown(f'<div class="fixed">{"Harika cümle!" if f["ok"] else "Neredeyse!"}<br><span>{esc(f["fixed"])}</span><br><small>{esc(f["tip"])}</small></div>',
+                                unsafe_allow_html=True)
+                    speak_html(f["fixed"], label="Düzeltilmiş cümleyi dinle")
 
 elif S.screen == "panel":
     head()
-    p1, p2, p3 = st.tabs(["Gelişim", "Rozetler", "Ayarlar"])
+    p1, p4, p2, p5, p3 = st.tabs(["Gelişim", "Analiz", "Rozetler", "Mağaza", "Ayarlar"])
     with p1:
         days = [today - timedelta(d) for d in range(6, -1, -1)]
         H = [S.hist.get(d.isoformat(), {}) for d in days]
         vals = [h.get("n", 0) for h in H]
         mx = max(vals + [1])
-        names = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
         bars = "".join(f'<div class="cc {"t" if d == today else ""}"><em>{v or ""}</em><i style="height:{max(4, int(v / mx * 110))}px"></i>'
-                       f'<span>{names[d.weekday()]}</span></div>' for d, v in zip(days, vals))
+                       f'<span>{DAYS[d.weekday()]}</span></div>' for d, v in zip(days, vals))
         ok, n = sum(h.get("ok", 0) for h in H), sum(vals)
         dots = "".join(f'<i class="{"on" if S.hist.get((today - timedelta(d)).isoformat(), {}).get("n") else ""}"></i>' for d in range(13, -1, -1))
         st.markdown(f"""<div class="grid"><div class="tile"><b>{vals[-1]}</b><span>Bugün cevap</span></div><div class="tile"><b>{n}</b><span>Haftalık cevap</span></div>
             <div class="tile"><b>%{int(ok / n * 100) if n else 0}</b><span>Haftalık doğruluk</span></div>
-            <div class="tile"><b>{mastered()}/{len(S.nest)}</b><span>Usta kuş / yuvadaki</span></div></div>
+            <div class="tile"><b>{mastered()}/{len(S.nest)}</b><span>Usta kuş / yuvadaki</span></div>
+            <div class="tile"><b>{S.xp}</b><span>Toplam XP · Seviye {level()[0]}</span></div>
+            <div class="tile"><b>{S.seeds}</b><span>Tohum</span></div></div>
             <h3>Son 7 gün</h3><div class="chart">{bars}</div><h3>Son 14 gün</h3><div class="dots">{dots}</div><h3>Ünite gelişimi</h3>""",
                     unsafe_allow_html=True)
         rows = ""
@@ -1038,26 +1436,72 @@ elif S.screen == "panel":
                 unsafe_allow_html=True)
         buf = io.StringIO()
         cw = csv.writer(buf)
-        cw.writerow(["kelime", "turkce", "unite", "kutu", "dogru", "toplam", "sonraki_bakim"])
+        cw.writerow(["kelime", "turkce", "unite", "kutu", "dogru", "toplam", "ort_tepki_ms", "sonraki_bakim"])
         for i, v in S.nest.items():
             if i in W():
                 w = W()[i]
-                cw.writerow([w["en"], w["tr"], w.get("u", ""), v["box"], v["ok"], v["n"], v["due"]])
+                cw.writerow([w["en"], w["tr"], w.get("u", ""), v["box"], v["ok"], v["n"], v.get("ms", 0), v["due"]])
         st.download_button("Rapor (CSV)", buf.getvalue(), "lingonest_rapor.csv", use_container_width=True, icon=":material/download:")
+    with p4:
+        ents = [(i, v) for i, v in S.nest.items() if i in W()]
+        ms = [v["ms"] for _, v in ents if v.get("ms")]
+        late = sum(1 for _, v in ents if v["due"] < today.isoformat())
+        tot_n, tot_ok = sum(v["n"] for _, v in ents), sum(v["ok"] for _, v in ents)
+        st.markdown(f"""<div class="grid"><div class="tile"><b>{(sum(ms) / len(ms) / 1000):.1f} sn</b><span>Ortalama tepki süresi</span></div>
+            <div class="tile"><b>%{int(tot_ok / tot_n * 100) if tot_n else 0}</b><span>Genel doğruluk</span></div>
+            <div class="tile"><b>{late}</b><span>Bakımı geciken kelime</span></div>
+            <div class="tile"><b>{S.hm_wins + S.mm_wins}</b><span>Kazanılan oyun</span></div></div>""" if ms else
+                    '<div class="hint">Analiz için biraz soru çöz.</div>', unsafe_allow_html=True)
+        if ents:
+            st.markdown("<h3>Kutulara göre doğruluk</h3>", unsafe_allow_html=True)
+            rows = ""
+            for b, (nm_, em) in enumerate(STAGES):
+                xs = [v for _, v in ents if v["box"] == b]
+                nn, oo = sum(v["n"] for v in xs), sum(v["ok"] for v in xs)
+                rows += f'<div class="row">{tw(em, 26)}<span>{nm_}</span><div class="bar"><div style="width:{int(oo / nn * 100) if nn else 0}%"></div></div><small>{len(xs)} kelime</small></div>'
+            st.markdown(rows, unsafe_allow_html=True)
+            st.markdown("<h3>Sınıf düzeyine göre doğruluk</h3>", unsafe_allow_html=True)
+            rows = ""
+            for g, gn in GRADE_NAMES.items():
+                xs = [v for i, v in ents if i[0] == g]
+                nn, oo = sum(v["n"] for v in xs), sum(v["ok"] for v in xs)
+                rows += f'<div class="row"><span>{gn}</span><div class="bar"><div style="width:{int(oo / nn * 100) if nn else 0}%"></div></div><small>{len(xs)} kelime</small></div>'
+            st.markdown(rows, unsafe_allow_html=True)
+            load = [sum(1 for _, v in ents if v["due"] == (today + timedelta(d)).isoformat() or (d == 0 and v["due"] <= today.isoformat())) for d in range(7)]
+            mxl = max(load + [1])
+            st.markdown("<h3>Önümüzdeki 7 gün bakım yükü</h3><div class='chart'>" + "".join(
+                f'<div class="cc {"t" if d == 0 else ""}"><em>{v or ""}</em><i style="height:{max(4, int(v / mxl * 110))}px"></i><span>{DAYS[(today + timedelta(d)).weekday()]}</span></div>'
+                for d, v in enumerate(load)) + "</div>", unsafe_allow_html=True)
     with p2:
         got = [b for b in BADGES if b[3]()]
         html = "".join(f'<div class="bgi {"" if b in got else "off"}">{tw(b[1], 56)}<div>{b[0]}</div><small>{b[2]}</small></div>' for b in BADGES)
         st.markdown(f"<h3>{len(got)}/{len(BADGES)} rozet</h3><div class='bg'>{html}</div>", unsafe_allow_html=True)
+    with p5:
+        st.markdown(f'<div class="card on"><span class="bob">{chick(110)}</span><div class="t">{tw("🌰", 22)} {S.seeds} tohum</div>'
+                    f'<small>Doğru cevap, oyun ve görevlerden tohum kazan</small></div>', unsafe_allow_html=True)
+        cols = st.columns(2)
+        for n_, (i, (nm_, price, slot)) in enumerate(SHOP.items()):
+            with cols[n_ % 2]:
+                own, worn = i in S.owned, S.eq.get(slot) == i
+                st.markdown(f'<div class="card {"on" if worn else ""}">{chick(70, eq={slot: i})}<div class="t" style="font-size:16px">{nm_}</div>'
+                            f'<small>{"Takılı" if worn else "Sende" if own else f"{price} tohum"}</small></div>', unsafe_allow_html=True)
+                if own:
+                    st.button("Çıkar" if worn else "Tak", key=f"eq_{i}", use_container_width=True, on_click=equip, args=(i,))
+                else:
+                    st.button("Satın al", key=f"buy_{i}", type="primary", use_container_width=True, disabled=S.seeds < price, on_click=buy, args=(i,))
     with p3:
-        st.text_input("Adın", value=S.name, key="w_name", on_change=lambda: S.__setitem__("name", S.w_name))
+        st.text_input("Adın", value=S.name, key="w_name", max_chars=20,
+                      on_change=lambda: S.__setitem__("name", re.sub(r"[^\w \-]", "", S.w_name, flags=re.U).strip()[:20]))
         st.radio("Maskot rengi", list(COLORS), index=list(COLORS).index(S.color), horizontal=True, key="w_color",
                  on_change=lambda: S.__setitem__("color", S.w_color))
+        st.radio("Ses aksanı", ["ABD", "İngiltere"], index=1 if S.accent == "uk" else 0, horizontal=True, key="w_acc",
+                 on_change=lambda: S.__setitem__("accent", "uk" if S.w_acc == "İngiltere" else "us"))
         st.select_slider("Günlük hedef (doğru cevap)", [5, 10, 15, 20, 30], value=S.goal, key="w_goal",
                          on_change=lambda: S.__setitem__("goal", S.w_goal))
         st.toggle("Ses efektleri", value=S.sound, key="w_sound", on_change=lambda: S.__setitem__("sound", S.w_sound))
         if S.user:
-            st.markdown(f'<div class="row"><b>{S.user}</b><small>{"Öğretmen" if S.role == "teacher" else "Öğrenci"}'
-                        f'{" · Sınıf kodu: " + S.class_code if S.class_code else ""}</small></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="row"><b>{esc(S.user)}</b><small>{"Öğretmen" if S.role == "teacher" else "Öğrenci"}'
+                        f'{" · Sınıf kodu: " + esc(S.class_code) if S.class_code else ""}</small></div>', unsafe_allow_html=True)
             st.button("Çıkış yap", icon=":material/logout:", use_container_width=True, on_click=logout)
             with st.expander("Hesabı sil"):
                 st.caption("Tüm ilerleme ve hesap kalıcı olarak silinir.")
@@ -1073,11 +1517,28 @@ elif S.screen == "panel":
             st.button("Giriş yap veya kayıt ol", type="primary", use_container_width=True, on_click=go, kwargs={"guest": False})
         st.download_button("Yedek indir (JSON)", json.dumps({k: S[k] for k in PERSIST}), "lingonest_yedek.json", use_container_width=True,
                            icon=":material/save:")
+        up = st.file_uploader("Yedek yükle (JSON)", type="json", key="restore")
+        if up is not None and st.button("Yedeği geri yükle", use_container_width=True):
+            try:
+                d = json.load(up)
+                for k in PERSIST:
+                    if k in d and (DEFAULTS[k] is None or type(d[k]) is type(DEFAULTS[k])):
+                        S[k] = d[k]
+                S.nest = {i: dict(box=min(4, max(0, int(v.get("box", 0)))), due=str(v.get("due", today.isoformat())), ok=int(v.get("ok", 0)),
+                                  n=int(v.get("n", 0)), ms=int(v.get("ms", 0))) for i, v in S.nest.items() if isinstance(v, dict)}
+                S.name = re.sub(r"[^\w \-]", "", S.name, flags=re.U)[:20]
+                st.success("Yedek yüklendi.")
+            except Exception as ex:
+                st.error(f"Yedek okunamadı ({type(ex).__name__}).")
         st.caption("Görseller: Twemoji, CC-BY 4.0")
 
 elif S.screen == "class" and S.role == "teacher":
     head()
-    st.markdown(f'<div class="hero"><div><h2>Sınıf kodun: {S.class_code}</h2><p>Öğrenciler kayıt olurken bu kodu girer.</p></div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="hero"><div><h2>Sınıf kodun: {esc(S.class_code)}</h2><p>Öğrenciler kayıt olurken bu kodu girer.</p></div></div>', unsafe_allow_html=True)
+    HW_OPTS = {f"{u['title']} · {u['tr']}": u["id"] for u in ALL_UNITS}
+    sel = st.multiselect("Bu haftanın ödevi (üniteler)", list(HW_OPTS), default=[k for k, v in HW_OPTS.items() if v in S.hw], key="hw_sel")
+    st.button("Ödevi kaydet", type="primary", use_container_width=True, icon=":material/assignment:",
+              on_click=lambda: S.__setitem__("hw", [HW_OPTS[k] for k in S.hw_sel]))
     try:
         studs = db_class(S.class_code, "student")
     except Exception as ex:
@@ -1088,13 +1549,20 @@ elif S.screen == "class" and S.role == "teacher":
     else:
         rows, buf = "", io.StringIO()
         cw = csv.writer(buf)
-        cw.writerow(["ogrenci", "kelime", "usta_kus", "dogruluk", "seri", "son_giris"])
+        cw.writerow(["ogrenci", "kelime", "usta_kus", "dogruluk", "seri", "xp", "son_giris"])
+        cutoff = (today - timedelta(3)).isoformat()
         for r in sorted(studs, key=lambda r: -(r.get("summary") or {}).get("words", 0)):
             sm = r.get("summary") or {}
-            rows += (f'<div class="row"><b style="flex:1">{r["username"]}</b><small>{sm.get("words", 0)} kelime · {sm.get("mastered", 0)} usta · '
-                     f'%{sm.get("acc", 0)} · {sm.get("last", "-")}</small></div>')
-            cw.writerow([r["username"], sm.get("words", 0), sm.get("mastered", 0), sm.get("acc", 0), sm.get("streak", 0), sm.get("last", "")])
-        st.markdown(f"<h3>{len(studs)} öğrenci</h3>{rows}", unsafe_allow_html=True)
+            idle = " 💤" if (sm.get("last") or "") < cutoff else ""
+            rows += (f'<div class="row"><b style="flex:1">{esc(r["username"])}{idle}</b><small>{sm.get("words", 0)} kelime · {sm.get("mastered", 0)} usta · '
+                     f'%{sm.get("acc", 0)} · {sm.get("xp", 0)} XP · {esc(str(sm.get("last", "-")))}</small></div>')
+            cw.writerow([r["username"], sm.get("words", 0), sm.get("mastered", 0), sm.get("acc", 0), sm.get("streak", 0), sm.get("xp", 0), sm.get("last", "")])
+        st.markdown(f"<h3>{len(studs)} öğrenci</h3>{rows}<div class='hint'>💤 = 3 günden uzun süredir girmedi</div>", unsafe_allow_html=True)
+        cnt = Counter(i for r in studs for i in ((r.get("summary") or {}).get("hard") or []) if i in BASE_WORDS)
+        if cnt:
+            st.markdown("<h3>Sınıfın zorlandığı kelimeler</h3>" + "".join(
+                f'<div class="row">{pic(BASE_WORDS[i]["e"], 30)}<span style="flex:1">{BASE_WORDS[i]["en"]} · {BASE_WORDS[i]["tr"]}</span><small>{c} öğrenci</small></div>'
+                for i, c in cnt.most_common(5)), unsafe_allow_html=True)
         st.download_button("Sınıf raporu (CSV)", buf.getvalue(), "sinif_raporu.csv", use_container_width=True, icon=":material/download:")
 
 elif S.screen == "play":
@@ -1108,21 +1576,27 @@ elif S.screen == "play":
 
     elif S.phase == "quiz":
         q = S.qs[S.qi]
+        if not S.qt:
+            S.qt = time.time()
         st.markdown(f'<div class="bar"><div style="width:{S.qi / len(S.qs) * 100}%"></div></div>', unsafe_allow_html=True)
-        if q["k"] in ("see", "hear"):
-            w, seen = q["w"], q["k"] == "see"
-            if seen:
+        if q["k"] in ("see", "hear", "fill"):
+            w, kind = q["w"], q["k"]
+            text_opts = kind in ("see", "fill")
+            if kind == "see":
                 st.markdown(f"<p class='ask'>Bu İngilizce ne?</p><div class='art'>{pic(w['e'], 128)}</div>", unsafe_allow_html=True)
                 speak_html(w["en"])
-            else:
+            elif kind == "hear":
                 st.markdown("<p class='ask'>Dinle, doğru resmi seç</p>", unsafe_allow_html=True)
                 speak_html(w["en"], auto=S.picked is None)
+            else:
+                st.markdown(f"<p class='ask'>Boşluğu doldur</p><div class='art'><h2 style='margin:0'>{esc(q['blank'])}</h2>"
+                            f"<p style='margin:6px 0 0'>Eksik kelime: {w['tr']}</p></div>", unsafe_allow_html=True)
             cols = st.columns(2)
             for i, o in enumerate(q["opts"]):
                 with cols[i % 2]:
-                    inner = o["en"] if seen else pic(o["e"], 84)
+                    inner = o["en"] if text_opts else pic(o["e"], 84)
                     if S.picked is None:
-                        if seen:
+                        if text_opts:
                             st.button(inner, key=f"o{S.qi}_{i}", use_container_width=True, on_click=choose, args=(o["id"], w["id"]))
                         else:
                             st.markdown(f"<div class='opt'>{inner}</div>", unsafe_allow_html=True)
@@ -1132,7 +1606,22 @@ elif S.screen == "play":
                         st.markdown(f"<div class='opt {cls}'>{inner}</div>", unsafe_allow_html=True)
             if S.picked is not None:
                 sfx(S.ok)
+                detail = w["s"] if kind == "fill" else f"{w['en']} = {w['tr']}"
                 st.markdown(f"<div class='sheet {'ok' if S.ok else 'no'}'>{chick(52, not S.ok)}<div><b>{random.choice(['Harika!', 'Süper!', 'Bravo!']) if S.ok else 'Doğrusu:'}</b>"
+                            f"<br><span>{esc(detail)}</span></div></div>", unsafe_allow_html=True)
+                if kind == "fill":
+                    speak_html(w["s"])
+                st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
+        elif q["k"] == "dict":
+            w, key = q["w"], f"dc{S.qi}"
+            st.markdown("<p class='ask'>Duyduğun kelimeyi yaz</p>", unsafe_allow_html=True)
+            speak_html(w["en"], auto=not S.checked)
+            if not S.checked:
+                st.text_input("Kelime", key=key, label_visibility="collapsed", placeholder="Buraya yaz", max_chars=24)
+                st.button("Kontrol et", type="primary", use_container_width=True, on_click=check_dict, args=(key, w))
+            else:
+                sfx(S.ok)
+                st.markdown(f"<div class='sheet {'ok' if S.ok else 'no'}'>{chick(52, not S.ok)}<div><b>{'Mükemmel!' if S.ok else 'Doğrusu:'}</b>"
                             f"<br><span>{w['en']} = {w['tr']}</span></div></div>", unsafe_allow_html=True)
                 st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
         else:
@@ -1164,18 +1653,29 @@ elif S.screen == "play":
                 st.button("Devam", type="primary", use_container_width=True, on_click=next_q)
 
     elif S.phase == "result":
-        moves = S.res.get("moves", [])
-        up = [m for m in moves if m[2] > m[1]]
-        if up:
-            st.balloons()
-        hatch = "".join(
-            f'<div class="hatch">{pic(W()[i]["e"], 34)}<span>{W()[i]["en"]}</span>{tw(STAGES[a][1], 30)}<span class="arr">→</span>'
-            f'<span class="up">{tw(STAGES[b][1], 38)}</span><span>{STAGES[b][0]}</span></div>' for i, a, b in moves if a != b)
-        st.markdown(f"""<div class="big"><span class="bob">{chick(110)}</span><h1>{len(up)} kelime büyüdü!</h1>
-            <p style="font-weight:700">{S.score}/{len(S.qs)} doğru</p></div>{hatch}""", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        c1.button("Keşfet", icon=":material/explore:", use_container_width=True, on_click=go, kwargs={"screen": "explore"})
-        c2.button("Yuvama dön", type="primary", use_container_width=True, on_click=go, kwargs={"screen": "nest"})
+        if S.mode == "placement":
+            rows = "".join(
+                f'<div class="row"><b>{GRADE_NAMES[g]}</b><div class="bar"><div style="width:{int(S.pl[g][0] / S.pl[g][1] * 100)}%"></div></div>'
+                f'<small>{S.pl[g][0]}/{S.pl[g][1]}</small></div>' for g in "kab" if g in S.pl)
+            st.markdown(f'<div class="big"><span class="bob">{chick(110)}</span><h1>Başlangıç: {esc(S.placed)}</h1>'
+                        f'<p style="font-weight:700">Bu sadece öneri, istediğin üniteden başlayabilirsin.</p></div>{rows}', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            c1.button("Keşfet", icon=":material/explore:", use_container_width=True, type="primary", on_click=go, kwargs={"screen": "explore"})
+            c2.button("Yuvama dön", use_container_width=True, on_click=go, kwargs={"screen": "nest"})
+        else:
+            moves = S.res.get("moves", [])
+            up = [m for m in moves if m[2] > m[1]]
+            if up:
+                st.balloons()
+            hatch = "".join(
+                f'<div class="hatch">{pic(W()[i]["e"], 34)}<span>{W()[i]["en"]}</span>{tw(STAGES[a][1], 30)}<span class="arr">→</span>'
+                f'<span class="up">{tw(STAGES[b][1], 38)}</span><span>{STAGES[b][0]}</span></div>' for i, a, b in moves if a != b)
+            st.markdown(f"""<div class="big"><span class="bob">{chick(110)}</span><h1>{len(up)} kelime büyüdü!</h1>
+                <p style="font-weight:700">{S.score}/{len(S.qs)} doğru</p>
+                <p style="font-weight:700">+{S.sess['xp']} XP · +{S.sess['seeds']} tohum</p></div>{hatch}""", unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            c1.button("Keşfet", icon=":material/explore:", use_container_width=True, on_click=go, kwargs={"screen": "explore"})
+            c2.button("Yuvama dön", type="primary", use_container_width=True, on_click=go, kwargs={"screen": "nest"})
 
 
 autosave()
