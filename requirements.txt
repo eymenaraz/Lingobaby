@@ -1,5 +1,5 @@
 streamlit>=1.40
-gTTS
-anthropic
-Pillow
+gtts
 requests
+pillow
+anthropic
